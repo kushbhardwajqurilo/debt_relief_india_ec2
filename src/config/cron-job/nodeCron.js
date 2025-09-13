@@ -12,7 +12,7 @@ const {
 
 const cronJob = cron.schedule(
   // "0 9 * * *", // Run every day at 9:00 AM
-  "*/1 * * * *",
+  "0 9 * * * *",
   async () => {
     try {
       const today = new Date();
