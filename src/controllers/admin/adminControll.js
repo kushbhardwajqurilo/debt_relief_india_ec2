@@ -122,7 +122,7 @@ exports.uploadProfileImage = async (req, res) => {
       admin_id,
       {
         image: file.location,
-        public_id: uploadResult.public_id,
+        public_id: file.key,
       },
       { new: true }
     );
