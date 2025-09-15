@@ -117,21 +117,16 @@ exports.loginAdmin = async (req, res, next) => {
 exports.uploadProfileImage = async (req, res) => {
   try {
     const { admin_id } = req;
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
-    const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-      folder: "driadmiprofile",
-    });
-    fs.unlinkSync(req.file.path);
+    const file = req.file;
     const user = await adminModel.findByIdAndUpdate(
       admin_id,
       {
-        image: uploadResult.secure_url,
+        image: file.location,
         public_id: uploadResult.public_id,
       },
       { new: true }
     );
+
     res.status(200).json({
       message: "Profile image uploaded successfully",
       success: "Prifile Uploaded.",
