@@ -77,5 +77,5 @@ adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
 adminRouter.post("/verify-otp", AuthMiddleWare, verifyOtpForAdmin);
 adminRouter.put("/change-password", forgetPasswordMddleware, changePasswprd);
 adminRouter.post("/call-now-feature", callNowSetup);
-adminRouter.get('/get-advocate-call',getYourContactCall;)
+adminRouter.get("/get-advocate-call", getYourContactCall);
 module.exports = adminRouter;
