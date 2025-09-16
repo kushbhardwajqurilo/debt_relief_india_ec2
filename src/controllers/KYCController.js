@@ -246,11 +246,12 @@ exports.ApproveByAdmin = async (req, res) => {
       userId: updateKYC.user_id,
     });
     const message = await customeNoticationModel.find({});
-    const kyc_message = message[0].kyc_message;
+    const kyc_message =
+      message?.[0]?.kyc_message ||
+      `Congratulations ${updateKYC?.name} your KYC Has been approved by admin`;
     await sendNotificationToSingleUser(
       expo_token.token,
-      kyc_message ||
-        `Congratulations ${updateKYC?.name} your KYC Has been approved by admin`,
+      kyc_message || kyc_message,
       "Kyc Aprrove",
       "kyc"
     );
@@ -258,8 +259,7 @@ exports.ApproveByAdmin = async (req, res) => {
     await createNotification(
       updateKYC.user_id,
       "kyc Approved",
-      kyc_message ||
-        `Congratulations ${updateKYC?.name} your KYC Has been approved by admin`,
+      kyc_message,
       "kyc"
     );
     return res.status(200).json({
