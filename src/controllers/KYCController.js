@@ -267,6 +267,7 @@ exports.ApproveByAdmin = async (req, res) => {
       message: "KYC approved and advocate assigned",
     });
   } catch (error) {
+    console.log("aprove kyc error", error);
     return res.status(500).json({
       success: false,
       message: "Server error",
