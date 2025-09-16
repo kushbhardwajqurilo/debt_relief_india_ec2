@@ -20,7 +20,8 @@ const customeNoticationModel = new mongoose.model(
 const conctYourAdvocateSchema = mongoose.Schema({
   message: {
     type: String,
-    required: true,
+    default:
+      "our advocate are available form 9:00 AM t 11:00 AM, Monday to Saturday. Please ccall use during these hours for assistance with your legal matters. For urgent matters outside these hours, you can send us a message via WhatsApp abd we'll get back to you as soon as possible",
   },
 });
 const contatYourAdvocateModel = new mongoose.model(

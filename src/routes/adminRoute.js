@@ -14,6 +14,7 @@ const {
   verifyOtpForAdmin,
   changePasswprd,
   callNowSetup,
+  getYourContactCall,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -76,4 +77,5 @@ adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
 adminRouter.post("/verify-otp", AuthMiddleWare, verifyOtpForAdmin);
 adminRouter.put("/change-password", forgetPasswordMddleware, changePasswprd);
 adminRouter.post("/call-now-feature", callNowSetup);
+adminRouter.get('/get-advocate-call',getYourContactCall;)
 module.exports = adminRouter;

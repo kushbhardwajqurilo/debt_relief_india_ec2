@@ -8,6 +8,9 @@ const fs = require("fs");
 const cloudinary = require("../../utilitis/cloudinary");
 const adminAndLoginBannerModel = require("../../models/adminAndLoginBannerModel");
 const { json } = require("stream/consumers");
+const {
+  contatYourAdvocateModel,
+} = require("../../models/contactYourAdvocateModel");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -694,6 +697,19 @@ exports.callNowSetup = async (req, res) => {
       success: true,
       message: "message setup successfully",
     });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      error,
+    });
+  }
+};
+
+exports.getYourContactCall = async (req, res, next) => {
+  try {
+    const get = await contatYourAdvocateModel.find();
+    return res.status(200).json({ success: true, data: get });
   } catch (error) {
     return res.status(500).json({
       success: false,
