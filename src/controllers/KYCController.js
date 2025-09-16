@@ -241,7 +241,18 @@ exports.ApproveByAdmin = async (req, res) => {
       phone: updateKYC.phone,
       status: "N/A",
     };
-    const insertDRiUserAfterAsign = await DrisModel.create(driPayload);
+    const existingDRiUser = await DrisModel.findOne({
+      phone: driPayload.phone,
+    });
+
+    if (!existingDRiUser) {
+      // User doesn't exist → create new
+      const insertDRiUserAfterAsign = await DrisModel.create(driPayload);
+      console.log("New DRi user created:", insertDRiUserAfterAsign);
+    } else {
+      // User exists → do nothing
+      console.log("DRi user already exists. Skipping insert.");
+    }
     const expo_token = await fcmTokenModel.findOne({
       userId: updateKYC.user_id,
     });
