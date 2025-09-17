@@ -371,7 +371,7 @@ exports.CompleteKYC = async (req, res, next) => {
       if (isKyc.status === "pending") {
         return res.status(400).json({
           message: "KYC already submitted. Awaiting approval",
-          success: false,
+          success: true,
         });
       }
       if (isKyc.status === "approve") {
