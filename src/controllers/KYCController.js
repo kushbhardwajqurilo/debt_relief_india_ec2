@@ -419,13 +419,14 @@ exports.CompleteKYC = async (req, res, next) => {
     // 8. Send Notifications
     const expoToken = await fcmTokenModel.findOne({ userId: user_id });
     const custom_notification = await customeNoticationModel.find({});
-    const upload_message = custom_notification[0].kyc_submit;
+    const upload_message =
+      custom_notification?.[0]?.kyc_submit ||
+      `Dear ${uploadKyc.name}, your KYC documents have been submitted.`;
+    ("Debt Relief India");
     if (expoToken?.token) {
       await sendNotificationToSingleUser(
         expoToken.token,
-        upload_message ||
-          `Dear ${uploadKyc.name}, your KYC documents have been submitted.`,
-        "Debt Relief India",
+        upload_message,
         "kyc"
       );
     }
