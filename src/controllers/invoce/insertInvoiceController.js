@@ -189,7 +189,9 @@ exports.uploadInvoice = async (req, res, next) => {
       { new: true, upsert: true }
     );
     const custom_notification = await customeNoticationModel.find({});
-    const invoice_noti = custom_notification[0].invoice;
+    const invoice_noti =
+      custom_notification?.[0]?.invoice ||
+      `Dear ${driuser.name} Your Invice Is Ready...`;
     await sendNotificationToSingleUser(
       expo_token.token,
       "Debt Relief India",

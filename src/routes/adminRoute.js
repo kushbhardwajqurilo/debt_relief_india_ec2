@@ -67,7 +67,7 @@ adminRouter.post(
   adminDashboardBanner
 );
 adminRouter.get("/getadminBanner", getAdminAnsLoginBanner);
-// adminRouter.get("/adminProfileBanner", getAdminProfileAndBanner);
+adminRouter.get("/adminProfileBanner", getAdminProfileAndBanner);
 // adminRouter.get("/login-background", getlo);
 adminRouter.post("/add-banks", UploadSingleImage.single("image"), addBanks);
 adminRouter.get("/get-banks", getBanks);
@@ -78,4 +78,11 @@ adminRouter.post("/verify-otp", AuthMiddleWare, verifyOtpForAdmin);
 adminRouter.put("/change-password", forgetPasswordMddleware, changePasswprd);
 adminRouter.post("/call-now-feature", callNowSetup);
 adminRouter.get("/get-advocate-call", getYourContactCall);
+
+adminRouter.post(
+  "/login-background",
+  AuthMiddleWare,
+  UploadSingleImage.single("image"),
+  addLoginBackground
+);
 module.exports = adminRouter;

@@ -465,7 +465,8 @@ exports.getBarcodeAndUpi = async (req, res, next) => {
 exports.addLoginBackground = async (req, res, next) => {
   try {
     const { admin_id } = req;
-    const file = req.file.path;
+    console.log("admin", admin_id);
+    const file = req.file;
     if (!admin_id) {
       return res.status(400).json({
         success: false,
@@ -478,18 +479,10 @@ exports.addLoginBackground = async (req, res, next) => {
         message: "file missing",
       });
     }
-    const image = await cloudinary.uploader.upload(file, {
-      folder: "admin_and_login_banners",
-    });
-    if (!image) {
-      return res.status(400).json({
-        success: false,
-        message: "Faild to upload image",
-      });
-    }
+
     const payload = {
-      loginBanner: image.secure_url,
-      loginBanner_public_key: image.public_id,
+      loginBanner: file.location,
+      loginBanner_public_key: file.key,
     };
     const store = await adminAndLoginBannerModel.create(payload);
     if (store.length === 0 || !store) {
