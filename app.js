@@ -33,7 +33,7 @@ const app = express();
 //git
 // Enable CORS
 app.use(cors());
-
+app.set("view engine", "ejs");
 // Security headers with Helmet (optimized)
 app.use(
   helmet({
@@ -129,6 +129,11 @@ app.use(`${baseURI}notification`, notificationRouter);
 // app.post("/not", async (req, res) => {
 //   await sendNotificationToSingleUser(req.body.token, "hello", "ssfs", "ssss");
 // });
+
+app.get("/", (req, res) => {
+  return res.render("index");
+});
+
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: "API endpoint not found" });
 });
