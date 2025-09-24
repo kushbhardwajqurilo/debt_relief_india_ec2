@@ -11,6 +11,7 @@ const { getSingleUserToken } = require("../utilitis/getTokens");
 const {
   createNotification,
 } = require("./notificationController/notificationsController");
+const csvParser = require("csv-parser");
 
 // exports.EMISettlement = async (req, res) => {
 //   try {
@@ -191,22 +192,14 @@ exports.ManualEmiUpload = async (req, res, next) => {
       noOfEmi: "",
       dueDate: "",
       settlementAount: "",
-      loanType: "",
     };
-    const {
-      phone,
-      emiAmount,
-      emiType,
-      noOfEmi,
-      dueDate,
-      settlementAount,
-      loanType,
-    } = req.body;
+    const { phone, emiAmount, emiType, noOfEmi, dueDate, settlementAount } =
+      req.body;
     for (let val of Object.keys(validation)) {
       if (
         req.body[val] === undefined ||
         req.body[val] === "" ||
-        req.body[val].length === 0
+        req.body[val].toString().trim().length === 0
       ) {
         return res
           .status(400)
@@ -226,17 +219,17 @@ exports.ManualEmiUpload = async (req, res, next) => {
         .status(400)
         .json({ success: false, message: "user not found at this number" });
     }
-    if (emiType === "Settelement_Advance") {
-      isUser.Service_Fees = emiType;
+    if (emiType === "Settlement_Advance") {
+      isUser.Service_Advance_Total = settlementAount;
+      isUser.Service_Name = emiType;
     }
     if (emiType === "Service_Fees") {
-      isUser.Service_Fees = emiType;
+      isUser.Service_Name = emiType;
+      isUser.Service_Fees = settlementAount;
     }
     isUser.totalEmi = noOfEmi;
     isUser.dueDate = dueDate;
-    isUser.Service_Advance_Total = settlementAount;
     isUser.Final_Settlement = emiAmount;
-    isUser.loanType = loanType;
     isUser.status = "pending";
     await isUser.save();
 
@@ -287,6 +280,7 @@ exports.EMISettlement = async (req, res) => {
 
     const rawRows = await csv().fromFile(csvfilepath);
 
+    console.log("Row", rawRows);
     let lastPhone = "";
     let lastName = "";
 
@@ -459,6 +453,169 @@ exports.marksAsPaid = async (req, res) => {
       success: false,
       message: err.message,
       error: err.message,
+    });
+  }
+};
+
+//  test
+exports.createTestEmi = async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const { phone } = req.body;
+    const jsonArray = await csv().fromFile(filePath);
+
+    // Clean CSV
+    const cleanData = jsonArray.filter((row) => {
+      const isEmptyRow = Object.values(row).every(
+        (value) => !value || value.toString().trim() === ""
+      );
+      if (isEmptyRow) return false;
+
+      const isHeaderRow =
+        row["Client Name"] === "Client Name" && row["Phone"] === "Phone";
+      return !isHeaderRow;
+    });
+
+    // Group by client name
+    const grouped = {};
+    let currentClientName = null;
+
+    cleanData.forEach((row) => {
+      if (row["Client Name"] && row["Client Name"].trim() !== "") {
+        currentClientName = row["Client Name"].trim();
+
+        if (!grouped[currentClientName]) {
+          grouped[currentClientName] = {
+            clientName: currentClientName,
+            phone: row["Phone"] || "",
+            fees: row["Fees %"] || "",
+            gst: row["GST %"] || "",
+            details: {
+              fees: row["Fees %"] || "",
+              gst: row["GST %"] || "",
+              serviceFees: row["Service Fees"] || "",
+              monthlySubscription: row["Monthly Subscription"] || "",
+              settlementAdvance: row["Settlement Advance"] || "",
+              monthlyFees: row["Monthly Fees"] || "",
+              settlementPercent: row["Settlement Percentage"] || "",
+              noOfEmi: row["No Of EMI"] || "",
+              emiAmount: row["EMI Amount"] || "",
+            },
+            creditCards: [],
+            personalLoans: [],
+          };
+        }
+      }
+
+      if (!currentClientName) return;
+
+      const client = grouped[currentClientName];
+
+      if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
+        client.creditCards.push({
+          bank: row["Credit Card"],
+          amount: row["Amount"] || "",
+          settlement: row["CC Settlement"] || "",
+          total: row["CC Total"] || "",
+        });
+      }
+
+      if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
+        client.personalLoans.push({
+          bank: row["Personal Loan"],
+          amount: row["PL Amount"] || "",
+          settlement: row["PL Settlement"] || "",
+          total: row["PL Total"] || "",
+        });
+      }
+    });
+
+    let matchedClient = Object.values(grouped).find(
+      (client) => client.phone === phone
+    );
+
+    if (!matchedClient) {
+      return res.status(404).json({
+        success: false,
+        message: "No client found in CSV with provided phone",
+      });
+    }
+
+    // Calculate totals
+    const creditTotal = matchedClient.creditCards.reduce(
+      (sum, card) => sum + (parseFloat(card.total) || 0),
+      0
+    );
+
+    const plTotal = matchedClient.personalLoans.reduce(
+      (sum, loan) => sum + (parseFloat(loan.total) || 0),
+      0
+    );
+
+    const userData = {
+      name: matchedClient.clientName,
+      phone: matchedClient.phone,
+      fees: matchedClient.details.fees,
+      gst: matchedClient.details.gst,
+      credit_Cards: matchedClient.creditCards,
+      CreditTotal: creditTotal.toString(),
+      personal_Loans: matchedClient.personalLoans,
+      PL_Total: plTotal.toString(),
+      Service_Fees: matchedClient.details.serviceFees || "",
+      Service_Advance_Total: matchedClient.details.settlementAdvance || "",
+      Settlement_Percent: matchedClient.details.settlementPercent,
+      totalEmi: parseInt(matchedClient.details.noOfEmi || "0"),
+      monthlyEmi: parseFloat(matchedClient.details.emiAmount || "0"),
+    };
+
+    // Status
+    let status = "Pending";
+    if (userData.totalEmi === 0 && userData.monthlyEmi === 0) {
+      status = "N/A";
+    }
+
+    // Update only the matched user
+    let user = await DrisModel.findOne({
+      phone: matchedClient.phone,
+    });
+
+    if (user) {
+      Object.assign(user, userData);
+      user.status = status;
+      await user.save();
+    } else {
+      user = new DrisModel({ ...userData, status });
+      await user.save();
+    }
+
+    // Notification
+    const token = await getSingleUserToken(phone);
+    if (token.status === true && token.userId) {
+      const message = `Dear ${user.name}, your EMI has been issued. Debt Relief India will send you Monthly Invoice.`;
+      await sendNotificationToSingleUser(
+        token,
+        message,
+        "Debt Relief India",
+        "emi"
+      );
+      await createNotification(
+        token.userId,
+        "Debt Relief India",
+        message,
+        "emi"
+      );
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "EMI uploaded successfully for provided phone",
+    });
+  } catch (error) {
+    console.error("Error parsing CSV:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error while parsing CSV",
+      error: error.message,
     });
   }
 };

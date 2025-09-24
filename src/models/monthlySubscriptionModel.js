@@ -4,6 +4,10 @@ const subscriptionSchema = mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: [true, "admin id is required"],
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: [true, "user id required"],
+  },
   subscription: {
     type: String,
     required: [true, "subscription missing"],
@@ -18,11 +22,6 @@ const subscriptionSchema = mongoose.Schema({
   },
   dueDate: {
     type: Date,
-    default: () => {
-      const now = new Date();
-      now.setMonth(now.getMonth() + 1);
-      return now;
-    },
   },
 });
 

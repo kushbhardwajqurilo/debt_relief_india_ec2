@@ -2,13 +2,19 @@ const { default: mongoose } = require("mongoose");
 const adminModel = require("../../models/adminModel");
 const User = require("../../models/userModel");
 const subscriptionModel = require("../../models/monthlySubscriptionModel");
+const DrisModel = require("../../models/DriUserModel");
 exports.SubscriptionsController = async (req, res, next) => {
   try {
+    const validation = {
+      subscription: "",
+      gst: "",
+      duedate: "",
+      client: "",
+    };
     const { admin_id, role } = req;
-    const { subscription, gst } = req.body;
-    const fees = 1000;
+    const { subscription, gst, client, duedate } = req.body;
+    const fees = parseInt(subscription);
     const amount = fees + (fees * gst) / 100;
-
     if (!admin_id || !role) {
       return res.status(400).json({ message: "Invalid admin credentials" });
     }
@@ -22,19 +28,29 @@ exports.SubscriptionsController = async (req, res, next) => {
       return res.status(400).json({ message: "Admin not found" });
     }
 
-    if (!subscription || !gst) {
-      return res.status(400).json({ message: "All fields are required" });
+    for (let val of Object.keys(validation)) {
+      const field = req.body[val];
+      if (
+        field === undefined ||
+        field === null ||
+        String(field).trim().length === 0
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: `for server ${val} is required` });
+      }
     }
-
-    // ✅ Find existing subscription and replace it (upsert)
+    const payload = {
+      adminId: admin_id,
+      subscription,
+      userId: client,
+      gst,
+      amount: Math.round(amount),
+      dueDate: duedate,
+    };
     const newSubscription = await subscriptionModel.findOneAndUpdate(
-      { adminId: admin_id }, // filter
-      {
-        adminId: admin_id,
-        subscription,
-        gst,
-        amount,
-      },
+      { adminId: admin_id },
+      payload,
       {
         new: true,
         upsert: true,
@@ -55,7 +71,7 @@ exports.SubscriptionsController = async (req, res, next) => {
   }
 };
 
-// get  perticular user subscriptions for admin...
+// get perticular user subscriptions for admin...
 
 exports.getUsersSubscriptionToAdmin = async (req, res, next) => {
   try {
@@ -194,6 +210,44 @@ exports.deleteSubscription = async (req, res, next) => {
     return res.status(500).json({
       success: false,
       message: err.message,
+    });
+  }
+};
+
+// get all users to admin
+exports.getAllUserToAdmin = async (req, res) => {
+  try {
+    const validation = {
+      admin_id: "",
+      role: "",
+    };
+    const { admin_id, role } = req;
+    for (let val of Object.keys(validation)) {
+      if (req[val].toString().trim().length === 0 || !req[val]) {
+        return res
+          .status(400)
+          .json({ success: false, message: `${val} is required` });
+      }
+      if (val === "admin_id") {
+        if (!mongoose.Types.ObjectId.isValid(req[val])) {
+          return res
+            .status(400)
+            .json({ success: false, message: "admin_id not valid" });
+        }
+      }
+    }
+    const users = await DrisModel.find();
+    const formateUser = users.map((e) => ({
+      id: e.id,
+      name: e.name,
+      _id: e._id,
+    }));
+    return res.status(200).json({ success: true, data: formateUser });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      error,
     });
   }
 };

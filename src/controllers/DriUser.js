@@ -3,11 +3,15 @@ const DrisModel = require("../models/DriUserModel");
 const KYCmodel = require("../models/KYCModel");
 const EmiModel = require("../models/EMIModel");
 const advocateModel = require("../models/advocateModel");
+const { default: mongoose } = require("mongoose");
 exports.importUsersFromCSV = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: "File required" });
 
+    // CSV read
     const result = await csv().fromFile(req.file.path);
+
+    // CSV se users banaye
     const data = result.map((row) => ({
       name: row.name,
       email: row.email,
@@ -16,11 +20,35 @@ exports.importUsersFromCSV = async (req, res) => {
       phone: row.phone,
       status: "N/A",
     }));
-    const uplodUserData = await DrisModel.insertMany(data, { ordered: true });
+
+    // Sare phone numbers nikaale
+    const phones = data.map((u) => u.phone);
+
+    // DB me already existing phone numbers check karo
+    const existingUsers = await DrisModel.find(
+      { phone: { $in: phones } },
+      { phone: 1 }
+    );
+    const existingPhones = existingUsers.map((u) => u.phone);
+
+    // Filter karo sirf naye users ke liye
+    const newUsers = data.filter((u) => !existingPhones.includes(u.phone));
+
+    if (newUsers.length === 0) {
+      return res.status(200).json({
+        success: false,
+        message: "No new users to insert (all phone numbers already exist)",
+      });
+    }
+
+    // Insert karo only new users
+    const uplodUserData = await DrisModel.insertMany(newUsers, {
+      ordered: true,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Users inserted",
-      count: uplodUserData.length,
     });
   } catch (err) {
     console.error("Insertion error:", err);
@@ -31,11 +59,12 @@ exports.importUsersFromCSV = async (req, res) => {
     });
   }
 };
+
 //get all user list for admin
 exports.getUsersList = async (req, res) => {
   try {
     // Fetch all users
-    const users = await DrisModel.find({})
+    const users = await DrisModel.find({ isDelete: { $ne: true } })
       .select("-createdAt -__v") // remove unwanted fields
       .lean();
 
@@ -210,6 +239,58 @@ exports.getSettementAdvance = async (req, res, next) => {
       success: false,
       message: err.message,
       reason: err?.writeErrors?.[0]?.errmsg || "something went wrong.",
+    });
+  }
+};
+
+// multiple user soft delete
+exports.multipleSoftDelete = async (req, res) => {
+  try {
+    const { userIds, phones } = req.body;
+    let users;
+    if (Array.isArray(userIds || phones)) {
+      users = await DrisModel.updateMany(
+        { id: { $in: userIds } },
+        { $set: { isDelete: true, deletedAt: new Date() } }
+      );
+      if (users.modifiedCount === 0 && phones) {
+        users = await DrisModel.updateMany(
+          { phone: phones },
+          { $set: { isDelete: true, deletedAt: new Date() } }
+        );
+      } else if (phones) {
+        users = await DrisModel.updateMany(
+          { phone: phones },
+          { $set: { isDelete: true, deletedAt: new Date() } }
+        );
+      }
+      if (!users || users.modifiedCount === 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: "failed to delete users" });
+      }
+      return res.status(200).json({
+        success: true,
+        message: `${users.modifiedCount} users deleted`,
+      });
+    }
+    users = await DrisModel.findOneAndUpdate(
+      { id: userIds },
+      { $set: { isDelete: true, deletedAt: new Date() } }
+    );
+
+    if (!users) {
+      return res
+        .status(400)
+        .json({ success: false, message: "fail to delete" });
+    }
+    return res.status(200).json({ success: true, message: "user delete" });
+  } catch (err) {
+    console.log("user", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      reason: err?.writeErrors?.[0]?.errmsg || "Something went wrong.",
     });
   }
 };

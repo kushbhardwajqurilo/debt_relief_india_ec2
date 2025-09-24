@@ -76,7 +76,7 @@ adminRouter.get("/get-banks", getBanks);
 adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
 adminRouter.post("/verify-otp", AuthMiddleWare, verifyOtpForAdmin);
 adminRouter.put("/change-password", forgetPasswordMddleware, changePasswprd);
-adminRouter.post("/call-now-feature", callNowSetup);
+adminRouter.post("/call-now-feature", AuthMiddleWare, callNowSetup);
 adminRouter.get("/get-advocate-call", getYourContactCall);
 
 adminRouter.post(

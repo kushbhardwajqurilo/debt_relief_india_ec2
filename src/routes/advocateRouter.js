@@ -3,6 +3,7 @@ const {
   updateAdvocate,
   getSingleAdvocate,
   getAllAdvocates,
+  serviceTiming,
 } = require("../controllers/admin/advocateController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const s3AdvoateUpload = require("../middlewares/AdvocateImageMiddleware");
@@ -19,5 +20,6 @@ advocateRouter.put(
 );
 advocateRouter.get("/single/:id", getSingleAdvocate);
 advocateRouter.get("/all", getAllAdvocates);
+advocateRouter.post("/set-timing", AuthMiddleWare, serviceTiming);
 
 module.exports = advocateRouter;

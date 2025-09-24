@@ -4,6 +4,7 @@ const {
   getUsersSubscriptionToAdmin,
   deleteSubscription,
   updateSubscription,
+  getAllUserToAdmin,
 } = require("../controllers/admin/monthlySubsciption");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
@@ -34,6 +35,12 @@ subscriptionRouter.delete(
   AuthMiddleWare,
   roleAuthenticaton("admin"),
   deleteSubscription
+);
+subscriptionRouter.get(
+  "/subscription-users",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  getAllUserToAdmin
 );
 
 module.exports = subscriptionRouter;

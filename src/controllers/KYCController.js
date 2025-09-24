@@ -203,7 +203,7 @@ exports.ApproveByAdmin = async (req, res) => {
       });
     }
 
-    // ✅ Get user_id from KYC and assign to advocate
+    // Get user_id from KYC and assign to advocate
     const userId = isKYC.user_id;
 
     const updatedAdvocate = await advocateModel.findByIdAndUpdate(
@@ -220,7 +220,6 @@ exports.ApproveByAdmin = async (req, res) => {
     }
 
     const payload = {
-      id: assign_id,
       assign_advocate: advocate_id,
       status: "approve",
     };
@@ -239,6 +238,7 @@ exports.ApproveByAdmin = async (req, res) => {
       name: updateKYC.name,
       gender: updateKYC.gender,
       phone: updateKYC.phone,
+      id: assign_id,
       status: "N/A",
     };
     const existingDRiUser = await DrisModel.findOne({

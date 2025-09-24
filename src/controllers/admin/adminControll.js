@@ -508,7 +508,7 @@ exports.addLoginBackground = async (req, res, next) => {
 exports.adminDashboardBanner = async (req, res, next) => {
   try {
     const { admin_id } = req;
-    const file = req.file.path;
+    const file = req.file;
     if (!admin_id) {
       return res.status(400).json({
         success: false,
@@ -521,19 +521,9 @@ exports.adminDashboardBanner = async (req, res, next) => {
         message: "file missing",
       });
     }
-    console.log(file.admin_id);
-    const image = await cloudinary.uploader.upload(file, {
-      folder: "admin_and_login_banners",
-    });
-    if (!image) {
-      return res.status(400).json({
-        success: false,
-        message: "Faild to upload image",
-      });
-    }
     const payload = {
-      adminBanner: image.secure_url,
-      adminBanner_public_key: image.public_id,
+      adminBanner: file.location,
+      adminBanner_public_key: file.key,
     };
     const store = await adminAndLoginBannerModel.create(payload);
     if (store.length === 0 || !store) {
@@ -666,7 +656,7 @@ exports.getUserLoginBanner = async (req, res) => {
 exports.callNowSetup = async (req, res) => {
   try {
     const { message } = req.body;
-
+    console.log("message", message);
     if (!message || message.length === 0) {
       return res.status(400).json({
         success: false,

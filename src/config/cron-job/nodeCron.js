@@ -9,6 +9,9 @@ const {
 const {
   insertManyNotification,
 } = require("../../controllers/notificationController/notificationsController");
+const {
+  customeNoticationModel,
+} = require("../../models/contactYourAdvocateModel");
 
 const cronJob = cron.schedule(
   // "0 9 * * *", // Run every day at 9:00 AM
@@ -48,12 +51,14 @@ const cronJob = cron.schedule(
         if (!user) continue;
 
         const tokens = userIdToTokens[user._id.toString()] || [];
-        console.log(`EMI for ${emi.name} -> tokens:`, tokens);
-
+        const reminder = customeNoticationModel.find({});
+        const message =
+          reminder?.reminder_notification ||
+          "Your EMI payment is pending. Please pay now!";
         if (tokens.length > 0) {
           await sentNotificationToMultipleUsers(
             tokens,
-            "⚠️ Your EMI payment is pending. Please pay now!",
+            message,
             "EMI Reminder",
             "emiReminder"
           );
@@ -61,7 +66,7 @@ const cronJob = cron.schedule(
         await insertManyNotification(
           [user._id.toString()],
           "EMI Reminder",
-          "Your EMI Payment is pending. Please pay now!",
+          message,
           "EMI"
         );
       }

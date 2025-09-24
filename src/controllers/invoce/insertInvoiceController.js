@@ -81,6 +81,7 @@ exports.uploadInvoice = async (req, res, next) => {
   try {
     const { phone } = req.body;
     const haveEmi = await DrisModel.findOne({ phone });
+
     if (!haveEmi || haveEmi.totalEmi === 0) {
       return res
         .status(400)
@@ -102,42 +103,62 @@ exports.uploadInvoice = async (req, res, next) => {
     // Parse PDF
     const buffer = fs.readFileSync(filePath);
     const pdfData = await pdfParse(buffer);
-    const text = pdfData.text;
+    const text = pdfData?.text || "";
 
-    // Helper function to extract field dynamically
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        message: "Could not extract text from PDF (empty content)",
+      });
+    }
+
+    // ✅ Safe Helper function
     const extractField = (text, label, pattern = /(.+)/) => {
-      const regex = new RegExp(`${label}\\s*${pattern.source}`, "i");
-      const match = text.match(regex);
-      return match ? match[1].trim() : "";
+      if (!text) return "";
+      try {
+        const regex = new RegExp(`${label}\\s*${pattern.source}`, "i");
+        const match = text.match(regex);
+        return match && match[1] ? match[1].trim() : "";
+      } catch (e) {
+        console.log(`extractField failed for ${label}:`, e.message);
+        return "";
+      }
     };
 
-    // 🔹 Dynamic Service Extraction
+    // 🔹 Robust Service Extraction (handles compressed text)
     let serviceName = "";
-    const serviceBlockMatch = text.match(
-      /SERVICES\s*([\s\S]*?)(?=(?:UPI|Bank Details|SAC|Rate|$))/i
-    );
-    if (serviceBlockMatch) {
-      serviceName = serviceBlockMatch[1]
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line && !line.match(/^\s*$/)) // Remove empty lines
-        .join(" ");
+    try {
+      // Example matches:
+      // "1Settlement Advance9971..."  → Settlement Advance
+      // "1Service Fees9971..."        → Service Fees
+      const serviceMatch = text.match(/1\s*([A-Za-z ]+?)\s*9971/i);
+      if (serviceMatch && serviceMatch[1]) {
+        serviceName = serviceMatch[1].trim();
+      }
+    } catch (e) {
+      console.log("Service extraction failed:", e.message);
+    }
+
+    if (!serviceName) {
+      serviceName = "N/A"; // fallback
     }
 
     // Extract other fields dynamically
     const invoiceData = {
       invoiceDate: extractField(text, "Invoice Date", /([\d\/]+)/),
       invoiceNumber: extractField(text, "Invoice No.", /#?([\w\/-]+)/),
-      serviceName: serviceName || "Service Fees",
+      serviceName: serviceName,
       totalAmount: extractField(text, "Total Amount", /₹?\s*([\d,]+)/),
       taxableAmount: extractField(text, "Taxable Amount", /₹?\s*([\d,]+)/),
-      tax: extractField(text, "Tax", /₹?\s*([\d,]+)/),
+      tax: extractField(text, "IGST|CGST|SGST|Tax", /₹?\s*([\d,]+)/),
       billTo: extractField(text, "Bill To", /(.+)/),
       gstin: extractField(text, "GSTIN", /([\w\d]+)/),
       placeOfSupply: extractField(text, "Place of Supply", /(.+)/),
       url: "",
       phone,
     };
+
+    console.log("🧾 Extracted Invoice Data:", invoiceData);
 
     // Validate required fields
     if (
@@ -153,14 +174,14 @@ exports.uploadInvoice = async (req, res, next) => {
 
     const user = await UserModel.findOne({ phone });
     const expo_token = await fcmTokenModel.findOne({ userId: user._id });
-    // console.log("token", expo_token);
 
-    // upload to s3
+    // Upload to S3
     const fileContent = fs.readFileSync(req.file.path);
     const ext = path.extname(req.file.originalname);
     const newKey = `Invoices/${Date.now()}-${Math.round(
       Math.random() * 1e9
     )}${ext}`;
+
     await s3Client.send(
       new PutObjectCommand({
         Bucket: process.env.S3_BUCKET_NAME,
@@ -170,10 +191,13 @@ exports.uploadInvoice = async (req, res, next) => {
         ACL: "public-read",
       })
     );
+
     const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
     invoiceData["url"] = s3Url;
+
     fs.unlinkSync(req.file.path);
-    // Save to database
+
+    // Save to DB
     const result = await InvoiceModel.create(invoiceData);
     if (!result) {
       return res.status(500).json({ message: "Failed to save invoice data" });
@@ -188,10 +212,12 @@ exports.uploadInvoice = async (req, res, next) => {
       },
       { new: true, upsert: true }
     );
+
     const custom_notification = await customeNoticationModel.find({});
     const invoice_noti =
       custom_notification?.[0]?.invoice ||
-      `Dear ${driuser.name} Your Invice Is Ready...`;
+      `Dear ${driuser.name} Your Invoice Is Ready...`;
+
     await sendNotificationToSingleUser(
       expo_token.token,
       "Debt Relief India",
@@ -211,7 +237,7 @@ exports.uploadInvoice = async (req, res, next) => {
       success: true,
     });
   } catch (err) {
-    console.log("errr", err);
+    console.log("❌ Error in uploadInvoice:", err);
     return res.status(500).json({
       success: false,
       message: "Server error: " + err.message,

@@ -1,7 +1,9 @@
+const { default: mongoose } = require("mongoose");
 const adminModel = require("../../models/adminModel");
 const advocateModel = require("../../models/advocateModel");
 const cloudinay = require("../../utilitis/cloudinary");
 const fs = require("fs");
+const { serviceTimingModel } = require("../../models/contactYourAdvocateModel");
 exports.addAdvocate = async (req, res, next) => {
   try {
     const imagePath = req.file;
@@ -116,6 +118,34 @@ exports.getAllAdvocates = async (req, res, next) => {
         .json({ success: false, message: "No advocates found" });
     }
     return res.status(200).json({ success: true, data: advocates });
+  } catch (error) {
+    return res.status(500).json({ message: error.message, success: false });
+  }
+};
+
+// service timeing
+exports.serviceTiming = async (req, res) => {
+  try {
+    const { timing } = req.body;
+    if (!timing) {
+      return res
+        .status(400)
+        .json({ success: false, message: "timing credentials missing" });
+    }
+    const set_timing = await serviceTimingModel.findOneAndUpdate(
+      {},
+      { timing },
+      { upsert: true, new: true }
+    );
+    if (!set_timing) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Faild to set timing" });
+    }
+    return res.json({
+      success: true,
+      message: "service timing added`",
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message, success: false });
   }

@@ -139,7 +139,6 @@ exports.insertManyNotification = async (userIds, title, message, type) => {
 //  custom notification by admin
 exports.customeNotification = async (req, res) => {
   try {
-    console.log("body", req.body);
     const { message, type } = req.body;
 
     if (!message || message.length === 0) {
@@ -155,7 +154,9 @@ exports.customeNotification = async (req, res) => {
       updateFields["kyc_approve"] = message;
     } else if (type === "invoice") {
       updateFields["invoice"] = message;
-    } else {
+    } else if (type === "reminder")
+      updateFields["reminder_notification"] = message;
+    else {
       return res
         .status(400)
         .json({ success: false, message: "Invalid notification type" });

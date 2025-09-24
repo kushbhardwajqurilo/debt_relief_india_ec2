@@ -3,8 +3,9 @@ const cloudinary = require("../../utilitis/cloudinary");
 const fs = require("fs");
 exports.addBanks = async (req, res) => {
   try {
+    console.log("hell");
     const { bankName } = req.body;
-    const file = req.file.path;
+    const file = req.file;
     if (!bankName) {
       return res
         .status(400)
@@ -13,15 +14,7 @@ exports.addBanks = async (req, res) => {
     if (!file) {
       return res.status(400).json({ success: false, message: "image missing" });
     }
-    const upload = await cloudinary.uploader.upload(file, {
-      folder: "banks_icons",
-    });
-    const icon = upload.secure_url;
-    fs.unlinkSync(file);
-    if (!icon) {
-      return res.status("failed to upload icon");
-    }
-    const payload = { bankName, icon };
+    const payload = { bankName, icon: file.location };
     const insertBank = await BankModel.create(payload);
     if (!insertBank) {
       return res
@@ -33,6 +26,7 @@ exports.addBanks = async (req, res) => {
       message: "bank add successfull",
     });
   } catch (error) {
+    console.log("error", error);
     return res.status({ success: false, message: error.message, error });
   }
 };
