@@ -3,7 +3,7 @@ const cloudinary = require("../utilitis/cloudinary");
 const fs = require("fs");
 exports.createUPI = async (req, res, next) => {
   try {
-    const { upi_id } = req.body;
+    const { upi_id, AcNumber, IFSC, Payee, AccountType } = req.body;
     const filePath = req.file;
 
     if (!upi_id) {
@@ -12,7 +12,13 @@ exports.createUPI = async (req, res, next) => {
 
     await UPIModel.deleteMany({});
 
-    let payload = { upi_id };
+    let payload = {
+      upi_id,
+      AcNumber,
+      IFSC,
+      Payee,
+      AccountType,
+    };
 
     if (filePath) {
       payload.qrCode = filePath.location;
@@ -21,11 +27,13 @@ exports.createUPI = async (req, res, next) => {
 
     const newUPI = await UPIModel.create(payload);
     if (!newUPI) {
-      return res.status(400).json({ success: false, message: "faile to add" });
+      return res.status(400).json({ success: false, message: "Failed to add" });
     }
+
     return res.status(201).json({
       success: true,
-      message: " UPI Add successfully",
+      message: "UPI added successfully",
+      data: newUPI,
     });
   } catch (error) {
     console.error("Error in createUPI:", error);

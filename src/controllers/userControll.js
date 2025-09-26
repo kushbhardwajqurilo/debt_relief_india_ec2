@@ -8,6 +8,7 @@ const {
   sendNotificationToSingleUser,
 } = require("../config/expo-push-notification/expoNotification");
 const { default: axios } = require("axios");
+const { deleteFileFromS3, s3Client } = require("../config/aws-s3/s3Config");
 const otpStore = {};
 exports.sendOTP = async (req, res) => {
   try {
@@ -464,4 +465,36 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
-// get all uses list for addmin
+// update User ProfilePicture
+
+exports.updateUserProfilePicture = async (req, res) => {
+  try {
+    const { user_id } = req;
+    const profile = req.file;
+    if (!user_id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invaid User Credentials" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User_id Not Valid" });
+    }
+    const userKyc = await KYCmodel.findOne({ user_id });
+    if (!userKyc) {
+      return res
+        .status(400)
+        .json({ success: false, message: "user not found." });
+    }
+    userKyc.profile = profile.location;
+    await userKyc.save();
+    return res
+      .status(400)
+      .json({ success: true, message: "profile picture updated" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message, error });
+  }
+};

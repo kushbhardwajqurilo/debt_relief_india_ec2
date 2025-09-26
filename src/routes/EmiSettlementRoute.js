@@ -5,6 +5,7 @@ const {
   ManualEmiUpload,
   marksAsPaid,
   createTestEmi,
+  BultEmiInsert,
 } = require("../controllers/EMISettlementController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
@@ -15,6 +16,7 @@ const EmiSettlementRoute = require("express").Router();
 
 // EmiSettlementRoute.post("/create-emi", csvUpload.single("file"), EMISettlement);
 EmiSettlementRoute.post("/create-emi", csvUpload.single("file"), createTestEmi);
+EmiSettlementRoute.post("/bulk-insert", csvUpload.single("csv"), BultEmiInsert);
 EmiSettlementRoute.delete(
   "/delete-emi",
   AuthMiddleWare,

@@ -12,7 +12,10 @@ const {
   changePhoneNumber,
   getUserProfile,
   getAllSavingToUser,
+  updateUserProfilePicture,
 } = require("../controllers/userControll");
+const s3Uploader = require("../middlewares/AWS-S3/S3_UploadMiddleware");
+const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 // const limiter = require("../middlewares/rateLimitMiddleware");
 const { UserAuthMiddleWare } = require("../middlewares/userMiddleware");
 
@@ -28,6 +31,13 @@ userRouter.post("/user-savings", UserAuthMiddleWare, userSaving);
 userRouter.get("/get-user", UserAuthMiddleWare, userController);
 userRouter.get("/get-user-saving", UserAuthMiddleWare, getSavingByMonthYear);
 userRouter.get("/get-savings", UserAuthMiddleWare, getAllSavingToUser);
+userRouter.patch(
+  "/update-profile",
+  UserAuthMiddleWare,
+  roleAuthenticaton("user"),
+  s3Uploader.single("file"),
+  updateUserProfilePicture
+);
 userRouter.post("/notification", sendNotificationToSingleUser);
 
 module.exports = userRouter;

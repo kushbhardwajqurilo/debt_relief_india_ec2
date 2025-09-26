@@ -116,6 +116,10 @@ const creditCardSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  isOutstanding: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const personalLoanSchema = new mongoose.Schema({
@@ -134,6 +138,10 @@ const personalLoanSchema = new mongoose.Schema({
   total: {
     type: String,
     default: "",
+  },
+  isOutstanding: {
+    type: Boolean,
+    default: false,
   },
 });
 
@@ -214,8 +222,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "Pending",
   },
+  joinDate: {
+    type: Date,
+  },
   dueDate: {
     type: Date,
+  },
+  insert: {
+    type: Boolean,
+    default: false,
   },
   isDelete: {
     type: Boolean,

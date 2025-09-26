@@ -14,6 +14,7 @@ const outstandingSchemaa = new mongoose.Schema({
     required: [true, "final percentage missing"],
   },
   finalSavings: { type: Number, required: [true, "final savings missing"] },
+  loanId: { type: mongoose.Schema.Types.ObjectId, required: true },
 });
 
 const outstandingModel = mongoose.model(
