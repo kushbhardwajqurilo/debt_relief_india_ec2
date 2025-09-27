@@ -6,6 +6,7 @@ const {
   marksAsPaid,
   createTestEmi,
   BultEmiInsert,
+  outstandingController,
 } = require("../controllers/EMISettlementController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
@@ -31,5 +32,12 @@ EmiSettlementRoute.post(
   "/create-test-emi",
   csvUpload.single("file"),
   createTestEmi
+);
+
+EmiSettlementRoute.post(
+  "/outstand",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  outstandingController
 );
 module.exports = EmiSettlementRoute;

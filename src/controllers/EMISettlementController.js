@@ -12,6 +12,7 @@ const {
   createNotification,
 } = require("./notificationController/notificationsController");
 const csvParser = require("csv-parser");
+const { default: mongoose } = require("mongoose");
 
 // exports.EMISettlement = async (req, res) => {
 //   try {
@@ -520,6 +521,11 @@ exports.createTestEmi = async (req, res) => {
           amount: row["Amount"] || "",
           settlement: row["CC Settlement"] || "",
           total: row["CC Total"] || "",
+          finalOutstandingAmount: "",
+          finalSettelement: "",
+          finalPercentage: "",
+          finalSavings: "",
+          isOutstanding: false,
         });
       }
 
@@ -529,6 +535,11 @@ exports.createTestEmi = async (req, res) => {
           amount: row["PL Amount"] || "",
           settlement: row["PL Settlement"] || "",
           total: row["PL Total"] || "",
+          finalOutstandingAmount: "",
+          finalSettelement: "",
+          finalPercentage: "",
+          finalSavings: "",
+          isOutstanding: false,
         });
       }
     });
@@ -699,6 +710,10 @@ exports.BultEmiInsert = async (req, res) => {
           amount: row["Amount"] || "",
           settlement: row["CC Settlement"] || "",
           total: row["CC Total"] || "",
+          finalOutstandingAmount: "",
+          finalSettelement: "",
+          finalPercentage: "",
+          finalSavings: "",
           isOutstanding: false,
         });
       }
@@ -709,6 +724,10 @@ exports.BultEmiInsert = async (req, res) => {
           amount: row["PL Amount"] || "",
           settlement: row["PL Settlement"] || "",
           total: row["PL Total"] || "",
+          finalOutstandingAmount: "",
+          finalSettelement: "",
+          finalPercentage: "",
+          finalSavings: "",
           isOutstanding: false,
         });
       }
@@ -808,3 +827,113 @@ exports.BultEmiInsert = async (req, res) => {
 };
 
 // he
+
+exports.outstandingController = async (req, res) => {
+  try {
+    const validation = {
+      finaloutamount: "",
+      finalsettelement: "",
+      finalpercentage: "",
+      finalsaving: "",
+      phone: "",
+      loanId: "",
+    };
+
+    const {
+      finaloutamount,
+      finalsaving,
+      finalsettelement,
+      finalpercentage,
+      phone,
+      loanId,
+    } = req.body;
+
+    // Validation
+    for (let val of Object.keys(validation)) {
+      if (!req.body[val] || req.body[val].toString().trim().length === 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: `${val} is required` });
+      }
+    }
+
+    const loanObjId = new mongoose.Types.ObjectId(loanId);
+
+    // Prepare new outstanding data
+    const newOutstanding = {
+      finalOutstandingAmount: parseInt(finaloutamount),
+      finalSettelement: parseInt(finalsettelement),
+      finalPercentage: parseInt(finalpercentage),
+      finalSavings: parseInt(finalsaving),
+    };
+
+    // Find user
+    const driUser = await DrisModel.findOne({ phone });
+    if (driUser) {
+      driUser.credit_Cards?.forEach((val) => {
+        if (val._id.equals(loanObjId)) {
+          if (val.isOutstanding === true) {
+            return res.status(400).json({
+              success: false,
+              message: "this service already outstand",
+            });
+          } else {
+            val.isOutstanding = true;
+            Object.assign(val, newOutstanding);
+          }
+        }
+      });
+
+      driUser.personal_Loans?.forEach((val) => {
+        if (val._id.equals(loanObjId)) {
+          if (val.isOutstanding === true) {
+            return res.status(400).json({
+              success: false,
+              message: "this service already outstand",
+            });
+          } else {
+            val.isOutstanding = true;
+            Object.assign(val, newOutstanding);
+          }
+        }
+      });
+
+      //  Ensure subdocs are marked as modified
+      driUser.markModified("credit_Cards");
+      driUser.markModified("personal_Loans");
+
+      await driUser.save();
+    }
+
+    return res
+      .status(201)
+      .json({ success: true, message: "Outstanding successfully updated" });
+  } catch (error) {
+    console.log("error", error);
+    return res
+      .status(500)
+      .json({ success: false, message: error.message, error });
+  }
+};
+
+// get outstanding
+// exports.getOutstanding = async (req, res) => {
+//   try {
+//     const { phone } = req.body;
+//     const outstaings = await outstandingModel.find({ phone });
+//     if (!outstaings || outstaings.length === 0) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "no outstanding found" });
+//     }
+//     return res.status(200).json({
+//       success: true,
+//       data: outstaings,
+//     });
+//   } catch (error) {
+//     console.log("error", error);
+//     return res
+//       .status(500)
+//       .json({ success: false, message: error.message, error });
+//   }
+// };

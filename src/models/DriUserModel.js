@@ -116,6 +116,10 @@ const creditCardSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  finalOutstandingAmount: { type: String, default: 0 },
+  finalSettelement: { type: String, default: 0 },
+  finalPercentage: { type: String, default: 0 },
+  finalSavings: { type: String, default: 0 },
   isOutstanding: {
     type: Boolean,
     default: false,
@@ -139,6 +143,10 @@ const personalLoanSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  finalOutstandingAmount: { type: String, default: 0 },
+  finalSettelement: { type: String, default: 0 },
+  finalPercentage: { type: String, default: 0 },
+  finalSavings: { type: String, default: 0 },
   isOutstanding: {
     type: Boolean,
     default: false,

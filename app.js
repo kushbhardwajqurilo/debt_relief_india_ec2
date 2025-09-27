@@ -24,7 +24,7 @@ const QRUPIRouter = require("./src/routes/UpiAndQrRoute");
 const emiRouters = require("./src/routes/testingRoute");
 const whatsAppRouter = require("./src/routes/whatappRoute");
 const notificationRouter = require("./src/routes/notificationRouter");
-const outstandingRouter = require("./src/routes/outstandingRoute");
+
 // require("./src/config/cron-job/nodeCron");
 const app = express();
 
@@ -123,7 +123,7 @@ app.use(`${baseURI}upi`, QRUPIRouter);
 app.use(`${baseURI}emiSettle`, emiRouters);
 app.use(`${baseURI}whatsapp`, whatsAppRouter);
 app.use(`${baseURI}notification`, notificationRouter);
-app.use(`${baseURI}outstanding`, outstandingRouter);
+
 // ----------------------------
 // 404 Handler
 // ----------------------------
