@@ -1,13 +1,41 @@
-- name: Deploy to EC2
-  uses: appleboy/ssh-action@v0.1.10
-  with:
-    host: ${{ secrets.EC2_HOST }}
-    username: ubuntu
-    key: ${{ secrets.EC2_SSH_KEY }}
-    script: |
-      cd ~/debtreliefindia/debt_relief_india_ec2
-      git fetch --all
-      git reset --hard origin/main
-      npm install --production
-      pm2 stop myapp || true
-      pm2 start src/server.js --name "myapp"
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout your repo on GitHub runner
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ SSH and deploy to EC2
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }} # Your EC2 public IP or hostname
+          username: ubuntu # EC2 user
+          key: ${{ secrets.EC2_SSH_KEY }} # Private SSH key stored in GitHub Secrets
+          script: |
+            echo "Starting deployment on EC2..."
+
+            # Go to your project directory
+            cd ~/debtreliefindia/debt_relief_india_ec2
+
+            # Make sure we are on main branch and reset local changes
+            git fetch --all
+            git reset --hard origin/main
+
+            # Install/update dependencies
+            npm install --production
+
+            # Restart app with PM2
+            pm2 stop myapp || true
+            pm2 start src/server.js --name "myapp"
+
+            echo "Deployment finished successfully!"
