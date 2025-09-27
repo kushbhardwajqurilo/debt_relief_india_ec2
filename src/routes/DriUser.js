@@ -19,7 +19,7 @@ driRoute.get("/", getUsersList);
 driRoute.get("/search", searchUserById);
 driRoute.post("/single", getSingleUser);
 driRoute.get("/assign-advocate", UserAuthMiddleWare, getAssignAdvocate);
-driRoute.get("/settlement-advance", getSettementAdvance);
+driRoute.post("/settlement-advance", getSettementAdvance);
 driRoute.delete(
   "/delete-user",
   AuthMiddleWare,
