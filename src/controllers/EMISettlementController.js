@@ -259,7 +259,7 @@ exports.createTestEmi = async (req, res) => {
           finalSettelement: "",
           finalPercentage: "",
           finalSavings: "",
-          isOutstanding: false,
+          isOutstanding: true,
         });
       }
 
@@ -273,7 +273,7 @@ exports.createTestEmi = async (req, res) => {
           finalSettelement: "",
           finalPercentage: "",
           finalSavings: "",
-          isOutstanding: false,
+          isOutstanding: true,
         });
       }
     });
@@ -448,7 +448,7 @@ exports.BultEmiInsert = async (req, res) => {
           finalSettelement: "",
           finalPercentage: "",
           finalSavings: "",
-          isOutstanding: false,
+          isOutstanding: true,
         });
       }
 
@@ -462,7 +462,7 @@ exports.BultEmiInsert = async (req, res) => {
           finalSettelement: "",
           finalPercentage: "",
           finalSavings: "",
-          isOutstanding: false,
+          isOutstanding: true,
         });
       }
     });
@@ -607,13 +607,17 @@ exports.outstandingController = async (req, res) => {
       driUser.credit_Cards?.forEach((val) => {
         if (val._id.equals(loanObjId)) {
           if (val.isOutstanding === true) {
-            return res.status(400).json({
-              success: false,
-              message: "this service already outstand",
+            val.isOutstanding = false;
+            Object.assign(val, newOutstanding);
+            return res.status(200).json({
+              success: true,
+              message: "Service Closed",
             });
           } else {
-            val.isOutstanding = true;
-            Object.assign(val, newOutstanding);
+            return res.status(400).json({
+              success: false,
+              message: "this service already outstanded",
+            });
           }
         }
       });
@@ -621,13 +625,17 @@ exports.outstandingController = async (req, res) => {
       driUser.personal_Loans?.forEach((val) => {
         if (val._id.equals(loanObjId)) {
           if (val.isOutstanding === true) {
-            return res.status(400).json({
-              success: false,
-              message: "this service already outstand",
+            val.isOutstanding = false;
+            Object.assign(val, newOutstanding);
+            return res.status(200).json({
+              success: true,
+              message: "Service Closed",
             });
           } else {
-            val.isOutstanding = true;
-            Object.assign(val, newOutstanding);
+            return res.status(400).json({
+              success: false,
+              message: "this service already outstanded",
+            });
           }
         }
       });
