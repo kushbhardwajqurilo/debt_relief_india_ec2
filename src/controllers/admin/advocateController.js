@@ -150,3 +150,12 @@ exports.serviceTiming = async (req, res) => {
     return res.status(500).json({ message: error.message, success: false });
   }
 };
+
+exports.getAdvocateTiming = async (req, res, next) => {
+  try {
+    const timing = await serviceTimingModel.find({});
+    return res.status(200).json({ success: true, timing });
+  } catch (error) {
+    return res.status(500).json({ message: error.message, success: false });
+  }
+};

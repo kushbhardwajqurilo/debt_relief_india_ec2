@@ -23,4 +23,4 @@ jobs:
             cd ~/debtreliefindia/debt_relief_india_ec2
             git pull origin main
             npm install --production
-            pm2 restart all || pm2 start src/server.js --name "node-app"
+            pm2 restart all || pm2 start src/server.js --name "myapp"
