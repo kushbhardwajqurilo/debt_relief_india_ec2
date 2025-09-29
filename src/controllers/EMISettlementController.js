@@ -250,11 +250,19 @@ exports.createTestEmi = async (req, res) => {
       const client = grouped[currentClientName];
 
       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
+        const amount = parseFloat(row["Amount"] || 0); // Outstanding
+        const settlementPercent = parseFloat(row["CC Settlement"] || 0); // %
+
+        const estimatedSettlement = (amount * settlementPercent) / 100;
+        const estimatedSaving = amount - estimatedSettlement;
+
         client.creditCards.push({
           bank: row["Credit Card"],
-          amount: row["Amount"] || "",
-          settlement: row["CC Settlement"] || "",
+          amount: amount,
+          settlement: settlementPercent, // keeping as %
           total: row["CC Total"] || "",
+          estimatedSettlement: estimatedSettlement,
+          saving: estimatedSaving,
           finalOutstandingAmount: "",
           finalSettelement: "",
           finalPercentage: "",
@@ -264,11 +272,19 @@ exports.createTestEmi = async (req, res) => {
       }
 
       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
+        const amount = parseFloat(row["PL Amount"] || 0); // Outstanding
+        const settlementPercent = parseFloat(row["PL Settlement"] || 0); // %
+
+        const estimatedSettlement = (amount * settlementPercent) / 100;
+        const estimatedSaving = amount - estimatedSettlement;
+
         client.personalLoans.push({
           bank: row["Personal Loan"],
-          amount: row["PL Amount"] || "",
-          settlement: row["PL Settlement"] || "",
+          amount: amount,
+          settlement: settlementPercent, // keeping as %
           total: row["PL Total"] || "",
+          estimatedSettlement: estimatedSettlement,
+          saving: estimatedSaving,
           finalOutstandingAmount: "",
           finalSettelement: "",
           finalPercentage: "",
@@ -277,6 +293,8 @@ exports.createTestEmi = async (req, res) => {
         });
       }
     });
+
+    // --- estimated savings add ---
 
     let matchedClient = Object.values(grouped).find(
       (client) => client.phone === phone
