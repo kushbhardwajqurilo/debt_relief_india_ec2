@@ -490,7 +490,7 @@ exports.updateUserProfilePicture = async (req, res) => {
     userKyc.profile = profile.location;
     await userKyc.save();
     return res
-      .status(400)
+      .status(200)
       .json({ success: true, message: "profile picture updated" });
   } catch (error) {
     return res

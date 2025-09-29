@@ -93,29 +93,6 @@ exports.deleteNotification = async (req, res) => {
   }
 };
 
-exports.sendNotificationToAll = async (req, res) => {
-  try {
-    const { message } = req.body;
-    if (!message || message == "" || message.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "message required" });
-    }
-    const expo_tokens = await fcmTokenModel.find({});
-    const tokens = [];
-    expo_tokens.forEach((e) => tokens.push(e.token));
-    await sentNotificationToMultipleUsers(tokens, message);
-    return res
-      .status(200)
-      .json({ success: true, message: "notification send" });
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, message: error.message, error });
-  }
-};
-
-// insert many notiifications
 exports.insertManyNotification = async (userIds, title, message, type) => {
   try {
     if (!userIds || userIds.length === 0) {
@@ -135,6 +112,37 @@ exports.insertManyNotification = async (userIds, title, message, type) => {
     return { success: false, message: error.message };
   }
 };
+exports.sendNotificationToAll = async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || message == "" || message.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "message required" });
+    }
+    const expo_tokens = await fcmTokenModel.find({});
+    const tokens = [],
+      userIds = [];
+    expo_tokens.forEach((e) => tokens.push(e.token));
+    expo_tokens.forEach((e) => userIds.push(e.userId));
+    await sentNotificationToMultipleUsers(tokens, message);
+    await this.insertManyNotification(
+      userIds,
+      "Debt Relief India",
+      message,
+      "all"
+    );
+    return res
+      .status(200)
+      .json({ success: true, message: "notification send" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message, error });
+  }
+};
+
+// insert many notiifications
 
 //  custom notification by admin
 exports.customeNotification = async (req, res) => {
