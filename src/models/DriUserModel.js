@@ -238,7 +238,7 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
   dueDate: {
-    type: Date,
+    type: String,
   },
   insert: {
     type: Boolean,
