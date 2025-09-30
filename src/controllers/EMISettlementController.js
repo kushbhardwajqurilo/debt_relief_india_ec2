@@ -239,6 +239,7 @@ exports.createTestEmi = async (req, res) => {
               settlementPercent: row["Settlement Percentage"] || "",
               noOfEmi: row["No Of EMI"] || "",
               emiAmount: row["EMI Amount"] || "",
+              dueDate: row["Due Date"] || "",
             },
             creditCards: [],
             personalLoans: [],
@@ -333,6 +334,7 @@ exports.createTestEmi = async (req, res) => {
       Settlement_Percent: matchedClient.details.settlementPercent,
       totalEmi: parseInt(matchedClient.details.noOfEmi || "0"),
       monthlyEmi: parseFloat(matchedClient.details.emiAmount || "0"),
+      dueDate: matchedClient.details.dueDate,
       insert: true,
     };
 
@@ -838,6 +840,7 @@ exports.BultEmiInsert = async (req, res) => {
               settlementPercent: row["Settlement Percentage"] || "",
               noOfEmi: row["No Of EMI"] || "",
               emiAmount: row["EMI Amount"] || "",
+              dueDate: row["Due Date"] || "",
             },
             creditCards: [],
             personalLoans: [],
@@ -936,6 +939,7 @@ exports.BultEmiInsert = async (req, res) => {
         Settlement_Percent: client.details.settlementPercent,
         totalEmi: parseInt(client.details.noOfEmi || "0"),
         monthlyEmi: parseFloat(client.details.emiAmount || "0"),
+        dueDate: client.details.dueDate || "",
         insert: false,
         status:
           parseInt(client.details.noOfEmi || "0") === 0 &&
