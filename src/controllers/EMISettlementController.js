@@ -339,7 +339,7 @@ exports.createTestEmi = async (req, res) => {
     };
 
     // Status
-    let status = "Pending";
+    let status = "pending";
     if (userData.totalEmi === 0 && userData.monthlyEmi === 0) {
       status = "N/A";
     }
@@ -941,11 +941,7 @@ exports.BultEmiInsert = async (req, res) => {
         monthlyEmi: parseFloat(client.details.emiAmount || "0"),
         dueDate: client.details.dueDate || "",
         insert: false,
-        status:
-          parseInt(client.details.noOfEmi || "0") === 0 &&
-          parseFloat(client.details.emiAmount || "0") === 0
-            ? "N/A"
-            : "Pending",
+        status: "pending",
       };
 
       // Prepare bulkWrite operation without upsert
