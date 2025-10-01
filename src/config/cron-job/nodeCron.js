@@ -1,5 +1,4 @@
 const cron = require("node-cron");
-const cluster = require("cluster");
 const DrisModel = require("../../models/DriUserModel");
 const fcmTokenModel = require("../../models/fcmTokenModel");
 const User = require("../../models/userModel");
@@ -14,12 +13,10 @@ const {
 } = require("../../models/contactYourAdvocateModel");
 
 const cronJob = cron.schedule(
-  // "0 9 * * *", // Run every day at 9:00 AM
-  "0 9 * * * ",
+  "0 9 * * *", // ✅ every minute (removed trailing space)
   async () => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      console.log("✅ Cron tick at", new Date().toLocaleString());
 
       const pendingEmis = await DrisModel.find({ status: "pending" });
       if (!pendingEmis.length) {
@@ -27,10 +24,7 @@ const cronJob = cron.schedule(
         return;
       }
 
-      // phones
       const phones = [...new Set(pendingEmis.map((e) => String(e.phone)))];
-
-      // users
       const users = await User.find({ phone: { $in: phones } });
       const userIdsObj = users.map((u) => u._id);
       const userIdsStr = users.map((u) => u._id.toString());
@@ -46,15 +40,17 @@ const cronJob = cron.schedule(
         if (td.token) userIdToTokens[id].push(td.token);
       });
 
+      // Custom notification
+      const reminder = await customeNoticationModel.findOne({});
+      const message =
+        reminder?.reminder_notification ||
+        "Your EMI payment is pending. Pay Now!";
+
       for (const emi of pendingEmis) {
         const user = users.find((u) => String(u.phone) === String(emi.phone));
         if (!user) continue;
 
         const tokens = userIdToTokens[user._id.toString()] || [];
-        const reminder = customeNoticationModel.find({});
-        const message =
-          reminder?.reminder_notification ||
-          "Your EMI payment is pending. Please pay now!";
         if (tokens.length > 0) {
           await sentNotificationToMultipleUsers(
             tokens,

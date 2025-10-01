@@ -36,6 +36,6 @@ jobs:
 
             # Restart app with PM2
             pm2 stop myapp || true
-            pm2 start src/index.js.js --name "myapp"
+            pm2 start src/index.js --name "myapp"
 
             echo "Deployment finished successfully!"
