@@ -38,7 +38,7 @@ exports.SubscriptionsController = async (req, res, next) => {
       ) {
         return res
           .status(400)
-          .json({ success: false, message: `for server ${val} is required` });
+          .json({ success: false, message: `${val} is Require` });
       }
     }
     const payload = {
@@ -53,7 +53,7 @@ exports.SubscriptionsController = async (req, res, next) => {
 
     return res.status(201).json({
       success: true,
-      message: "Subscription saved successfully for the user",
+      message: "Subscription saved successfully.",
       data: newSubscription,
     });
   } catch (err) {
@@ -238,7 +238,7 @@ exports.getAllUserToAdmin = async (req, res) => {
     }
 
     // fetch all users
-    const drisUsers = await DrisModel.find();
+    const drisUsers = await DrisModel.find({ isDelete: { $ne: true } });
     const kycUsers = await KYCmodel.find();
 
     // make map of kyc users by phone
