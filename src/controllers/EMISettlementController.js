@@ -228,7 +228,7 @@ exports.createTestEmi = async (req, res) => {
             phone: row["Phone"] || "",
             fees: row["Fees %"] || "",
             gst: row["GST %"] || "",
-            insert: row["Insert"] === "true" || false, // insert field from CSV
+            insert: row["Insert"] === "true" || false,
             details: {
               fees: row["Fees %"] || "",
               gst: row["GST %"] || "",
@@ -239,7 +239,7 @@ exports.createTestEmi = async (req, res) => {
               settlementPercent: row["Settlement Percentage"] || "",
               noOfEmi: row["No Of EMI"] || "",
               emiAmount: row["EMI Amount"] || "",
-              dueDate: row["Due Date"] || "",
+              dueDate: "", // initialize empty
             },
             creditCards: [],
             personalLoans: [],
@@ -251,17 +251,22 @@ exports.createTestEmi = async (req, res) => {
 
       const client = grouped[currentClientName];
 
-      if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
-        const amount = parseFloat(row["Amount"] || 0); // Outstanding
-        const settlementPercent = parseFloat(row["CC Settlement"] || 0); // %
+      // --- Conditional dueDate assignment ---
+      if (row["Due Date"] && row["Due Date"].trim() !== "") {
+        client.details.dueDate = row["Due Date"].trim();
+      }
 
+      // Credit Card handling
+      if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
+        const amount = parseFloat(row["Amount"] || 0);
+        const settlementPercent = parseFloat(row["CC Settlement"] || 0);
         const estimatedSettlement = (amount * settlementPercent) / 100;
         const estimatedSaving = amount - estimatedSettlement;
 
         client.creditCards.push({
           bank: row["Credit Card"],
           amount: amount,
-          settlement: settlementPercent, // keeping as %
+          settlement: settlementPercent,
           total: row["CC Total"] || "",
           estimatedSettlement: estimatedSettlement,
           saving: estimatedSaving,
@@ -273,17 +278,17 @@ exports.createTestEmi = async (req, res) => {
         });
       }
 
+      // Personal Loan handling
       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
-        const amount = parseFloat(row["PL Amount"] || 0); // Outstanding
-        const settlementPercent = parseFloat(row["PL Settlement"] || 0); // %
-
+        const amount = parseFloat(row["PL Amount"] || 0);
+        const settlementPercent = parseFloat(row["PL Settlement"] || 0);
         const estimatedSettlement = (amount * settlementPercent) / 100;
         const estimatedSaving = amount - estimatedSettlement;
 
         client.personalLoans.push({
           bank: row["Personal Loan"],
           amount: amount,
-          settlement: settlementPercent, // keeping as %
+          settlement: settlementPercent,
           total: row["PL Total"] || "",
           estimatedSettlement: estimatedSettlement,
           saving: estimatedSaving,
@@ -296,8 +301,7 @@ exports.createTestEmi = async (req, res) => {
       }
     });
 
-    // --- estimated savings add ---
-
+    // Find matched client by phone
     let matchedClient = Object.values(grouped).find(
       (client) => client.phone === phone
     );
@@ -840,7 +844,7 @@ exports.BultEmiInsert = async (req, res) => {
               settlementPercent: row["Settlement Percentage"] || "",
               noOfEmi: row["No Of EMI"] || "",
               emiAmount: row["EMI Amount"] || "",
-              dueDate: row["Due Date"] || "",
+              dueDate: row["Due Date"] || "", // default
             },
             creditCards: [],
             personalLoans: [],
@@ -849,8 +853,12 @@ exports.BultEmiInsert = async (req, res) => {
       }
 
       if (!currentClientName) return;
-
       const client = grouped[currentClientName];
+
+      // ✅ Fix: Always update dueDate if row has value
+      if (row["Due Date"] && row["Due Date"].trim() !== "") {
+        client.details.dueDate = row["Due Date"].trim();
+      }
 
       // Credit Card
       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
@@ -939,8 +947,8 @@ exports.BultEmiInsert = async (req, res) => {
         Settlement_Percent: client.details.settlementPercent,
         totalEmi: parseInt(client.details.noOfEmi || "0"),
         monthlyEmi: parseFloat(client.details.emiAmount || "0"),
-        dueDate: client.details.dueDate || "",
-        insert: false,
+        dueDate: client.details.dueDate || "", // ✅ will always be last non-empty CSV value
+        insert: true,
         status: "pending",
       };
 
@@ -1114,4 +1122,8 @@ exports.outstandingController = async (req, res) => {
 //       .status(500)
 //       .json({ success: false, message: error.message, error });
 //   }
-// };
+
+// "मुलाक़ात की ख्वाहिश दिल में ही रह गई,
+// वो चेहरा जिसे देखा नहीं, रूह में बस गई।
+// प्यार अधूरा सही, मगर सच्चा है मेरा,
+// जुदाई का दर्द भी अब मेरी पहचान बन गई।"
