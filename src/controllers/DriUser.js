@@ -323,46 +323,75 @@ exports.multipleSoftDelete = async (req, res) => {
   try {
     const { userIds, phones } = req.body;
     console.log("body", req.body);
+
     let users;
-    if (Array.isArray(userIds || phones)) {
+
+    // Case 1: Delete by userIds array
+    if (Array.isArray(userIds) && userIds.length > 0) {
       users = await DrisModel.updateMany(
         { id: { $in: userIds } },
         { $set: { isDelete: true, deletedAt: new Date() } }
       );
-      if (users.modifiedCount === 0 && phones) {
+
+      if (
+        users.modifiedCount === 0 &&
+        Array.isArray(phones) &&
+        phones.length > 0
+      ) {
         users = await DrisModel.updateMany(
-          { phone: phones },
-          { $set: { isDelete: true, deletedAt: new Date() } }
-        );
-      } else if (phones) {
-        users = await DrisModel.updateMany(
-          { phone: phones },
+          { phone: { $in: phones } },
           { $set: { isDelete: true, deletedAt: new Date() } }
         );
       }
+
       if (!users || users.modifiedCount === 0) {
-        return res
-          .status(400)
-          .json({ success: false, message: "failed to delete users" });
+        return res.status(400).json({
+          success: false,
+          message: "No users deleted",
+        });
       }
+
       return res.status(200).json({
         success: true,
         message: `${users.modifiedCount} users deleted`,
       });
     }
-    users = await DrisModel.findOneAndUpdate(
-      { id: userIds },
-      { $set: { isDelete: true, deletedAt: new Date() } }
-    );
 
-    if (!users) {
-      return res
-        .status(400)
-        .json({ success: false, message: "fail to delete" });
+    // Case 2: Delete by phones array
+    if (Array.isArray(phones) && phones.length > 0) {
+      users = await DrisModel.updateMany(
+        { phone: { $in: phones } },
+        { $set: { isDelete: true, deletedAt: new Date() } }
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: `${users.modifiedCount} users deleted`,
+      });
     }
-    return res.status(200).json({ success: true, message: "user delete" });
+
+    // Case 3: Single userId
+    if (userIds) {
+      const user = await DrisModel.findOneAndUpdate(
+        { id: userIds },
+        { $set: { isDelete: true, deletedAt: new Date() } },
+        { new: true }
+      );
+
+      if (!user) {
+        return res
+          .status(400)
+          .json({ success: false, message: "User not found" });
+      }
+
+      return res.status(200).json({ success: true, message: "User deleted" });
+    }
+
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid request body" });
   } catch (err) {
-    console.log("user", err);
+    console.error("delete error", err);
     return res.status(500).json({
       success: false,
       message: err.message,

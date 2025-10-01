@@ -17,7 +17,11 @@ subscriptionRouter.post(
   roleAuthenticaton("admin"),
   SubscriptionsController
 );
-subscriptionRouter.get("/get-substouser", getUsersSubscriptionToUser);
+subscriptionRouter.get(
+  "/get-substouser",
+  UserAuthMiddleWare,
+  getUsersSubscriptionToUser
+);
 subscriptionRouter.get(
   "/get-substoadmin",
   AuthMiddleWare,

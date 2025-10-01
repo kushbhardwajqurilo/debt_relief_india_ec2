@@ -10,17 +10,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout your repo on GitHub runner
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ SSH and deploy to EC2
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.EC2_HOST }} # Your EC2 public IP or hostname
+          host: ${{ secrets.EC2_HOST }}
           username: ubuntu # EC2 user
-          key: ${{ secrets.EC2_SSH_KEY }} # Private SSH key stored in GitHub Secrets
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "Starting deployment on EC2..."
 
@@ -36,6 +34,6 @@ jobs:
 
             # Restart app with PM2
             pm2 stop myapp || true
-            pm2 start src/index.js --name "myapp"
+            pm2 start index.js --name "myapp"
 
             echo "Deployment finished successfully!"

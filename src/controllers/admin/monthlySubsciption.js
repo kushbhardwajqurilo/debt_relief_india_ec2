@@ -48,15 +48,7 @@ exports.SubscriptionsController = async (req, res, next) => {
       amount: Math.round(amount),
       dueDate: duedate,
     };
-    const newSubscription = await subscriptionModel.findOneAndUpdate(
-      { adminId: admin_id },
-      payload,
-      {
-        new: true,
-        upsert: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+    const newSubscription = await subscriptionModel.create(payload);
 
     return res.status(201).json({
       success: true,
@@ -114,11 +106,15 @@ exports.getUsersSubscriptionToAdmin = async (req, res, next) => {
 // get  perticular user subscriptions for user...
 exports.getUsersSubscriptionToUser = async (req, res, next) => {
   try {
+    const { user_id } = req;
+    console.log("user_id", user_id);
     const subscription = await subscriptionModel
-      .find({})
+      .find({ userId: user_id })
       .select("-_id -adminId -__v");
-    if (!subscription) {
-      return res.status(400).json({ message: "User has no subscription" });
+    if (!subscription || subscription.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "You don’t have an subscription" });
     }
     return res.status(200).json({
       success: true,
