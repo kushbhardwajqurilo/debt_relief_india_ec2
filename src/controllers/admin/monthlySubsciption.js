@@ -3,6 +3,7 @@ const adminModel = require("../../models/adminModel");
 const User = require("../../models/userModel");
 const subscriptionModel = require("../../models/monthlySubscriptionModel");
 const DrisModel = require("../../models/DriUserModel");
+const KYCmodel = require("../../models/KYCModel");
 exports.SubscriptionsController = async (req, res, next) => {
   try {
     const validation = {
@@ -217,9 +218,12 @@ exports.getAllUserToAdmin = async (req, res) => {
       admin_id: "",
       role: "",
     };
+
     const { admin_id, role } = req;
+
+    // validation
     for (let val of Object.keys(validation)) {
-      if (req[val].toString().trim().length === 0 || !req[val]) {
+      if (!req[val] || req[val].toString().trim().length === 0) {
         return res
           .status(400)
           .json({ success: false, message: `${val} is required` });
@@ -232,12 +236,31 @@ exports.getAllUserToAdmin = async (req, res) => {
         }
       }
     }
-    const users = await DrisModel.find();
-    const formateUser = users.map((e) => ({
-      id: e.id,
-      name: e.name,
-      _id: e._id,
-    }));
+
+    // fetch all users
+    const drisUsers = await DrisModel.find();
+    const kycUsers = await KYCmodel.find();
+
+    // make map of kyc users by phone
+    const kycMap = new Map();
+    kycUsers.forEach((k) => {
+      if (k.phone) {
+        kycMap.set(k.phone, k);
+      }
+    });
+
+    // now filter & map
+    const formateUser = drisUsers
+      .filter((e) => e.phone && kycMap.has(e.phone))
+      .map((e) => {
+        const kyc = kycMap.get(e.phone);
+        return {
+          id: e.id, // from DrisModel
+          name: e.name, // from DrisModel
+          _id: kyc.user_id, // from KYCmodel (not DrisModel)
+        };
+      });
+
     return res.status(200).json({ success: true, data: formateUser });
   } catch (error) {
     return res.status(500).json({
