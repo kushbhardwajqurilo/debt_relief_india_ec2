@@ -29,7 +29,7 @@ async function updateEMIDueDates() {
   }
 }
 const dateCron = cron.schedule(
-  "* * * * *",
+  "0 1 * * *",
   async () => {
     try {
       console.log("Date cron running");
@@ -39,7 +39,7 @@ const dateCron = cron.schedule(
     }
   },
   {
-    scheduled: false,
+    scheduled: true,
     timezone: "Asia/Kolkata",
   }
 );
