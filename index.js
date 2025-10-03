@@ -5,6 +5,7 @@ const http = require("http");
 const app = require("./app");
 const cronJob = require("./src/config/cron-job/nodeCron");
 const connectDB = require("./src/database/DB");
+const dateCron = require("./src/config/cron-job/dateUpdteCron");
 const PORT = process.env.PORT || 5000;
 const numCPUs = os.cpus().length;
 
@@ -16,6 +17,7 @@ if (cluster.isMaster) {
     .then(() => {
       console.log("Master connected to DB ✅");
       cronJob.start();
+      dateCron.start();
 
       // Fork workers after DB is ready
       for (let i = 0; i < numCPUs; i++) {

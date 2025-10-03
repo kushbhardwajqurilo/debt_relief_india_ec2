@@ -17,7 +17,7 @@ const filterCheck = (req, file, cb) => {
   } else {
     cb(new Error("Invalid file type"), false);
   }
-};
+}; //
 const upload = multer({
   storage: multerS3({
     s3: s3Client,
@@ -26,7 +26,9 @@ const upload = multer({
     contentDisposition: (req, file, cb) => {
       cb(null, "inline");
     },
-    contentType: multerS3.AUTO_CONTENT_TYPE,
+    contentDisposition: (req, file, cb) => {
+      cb(null, "inline");
+    },
     metadata: (req, file, cb) => {
       cb(null, { fieldName: file.fieldname });
     },
@@ -44,9 +46,6 @@ const upload = multer({
     },
   }),
   fileFilter: filterCheck,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-  },
 });
 
 module.exports = upload;

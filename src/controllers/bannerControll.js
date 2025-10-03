@@ -112,42 +112,34 @@ exports.updateBannerWithTitle = async (req, res) => {
     const updatedData = {};
     if (title) updatedData.bannerTitle = title;
     if (hyperLink) updatedData.hyperLink = hyperLink;
+
     if (req.file) {
+      // delete old banner from S3
       const oldKey = existingBanner.public_id;
       if (oldKey) await deleteFileFromS3(oldKey);
-      const fileContent = fs.readFileSync(req.file.path);
-      const ext = path.extname(req.file.originalname);
-      const newKey = `Banners/${Date.now()}-${Math.round(
-        Math.random() * 1e9
-      )}${ext}`;
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET_NAME,
-          Key: newKey,
-          Body: fileContent,
-          ContentType: req.file.mimetype,
-          ACL: "public-read",
-        })
-      );
-      const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
-      updatedData.bannerImage = s3Url;
-      updatedData.public_id = newKey;
-      fs.unlinkSync(req.file.path);
+
+      // multer-s3 already uploaded the file
+      updatedData.bannerImage = req.file.location; // S3 file URL
+      updatedData.public_id = req.file.key; // S3 file key
     }
+
     const updatedBanner = await bannerWithTitle.findByIdAndUpdate(
       bannerId,
       updatedData,
       { new: true }
     );
+
     return res.status(200).json({
       success: true,
       message: "Banner updated successfully",
+      data: updatedBanner,
     });
   } catch (err) {
     console.error("Error in updateBannerWithTitle:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
 exports.deleteBannerWithTitle = async (req, res, next) => {
   try {
     const bannerId = req.params.id;

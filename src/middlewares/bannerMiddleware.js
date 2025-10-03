@@ -41,8 +41,6 @@ const s3BannerUploader = multer({
   }),
 
   fileFilter: fileTypeCheck,
-
-  limits: { fileSize: 40 * 1024 * 1024 }, // 40MB
 });
 
 module.exports = s3BannerUploader;
