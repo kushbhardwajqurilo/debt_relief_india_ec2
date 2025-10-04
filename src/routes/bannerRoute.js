@@ -5,6 +5,7 @@ const {
   getBannerWithTitle,
   deleteBanner,
   updateBannerWithTitle,
+  deleteBannerWithTitle,
 } = require("../controllers/bannerControll");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const s3BannerUploader = require("../middlewares/bannerMiddleware");
@@ -23,4 +24,10 @@ bannerRouter.post(
 );
 bannerRouter.get("/all", getBannerWithTitle);
 bannerRouter.delete("/delete", deleteBanner);
+bannerRouter.delete(
+  "/del-banner-title",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  deleteBannerWithTitle
+);
 module.exports = bannerRouter;

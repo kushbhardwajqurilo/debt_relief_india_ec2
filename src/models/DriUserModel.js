@@ -232,9 +232,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "pending",
   },
-  joinDate: {
-    type: Date,
-  },
   dueDate: {
     type: String,
   },

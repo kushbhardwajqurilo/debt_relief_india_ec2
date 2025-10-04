@@ -74,7 +74,6 @@ exports.importUsersFromCSV = async (req, res) => {
       gender: row.Gender,
       id: row.id,
       phone: row.Phone,
-      joinDate: row.dateOfJoin,
       id: row.UserId,
       status: "N/A",
     }));

@@ -228,9 +228,16 @@ exports.createTestEmi = async (req, res) => {
             phone: row["Phone"] || "",
             insert: row["Insert"] === "true" || false,
             details: {
-              serviceFees: row["Service Fees"] || "",
+              serviceFees:
+                row["Service Fees"] && row["Service Fees"].trim() !== "0"
+                  ? row["Service Fees"]
+                  : "",
               monthlySubscription: row["Monthly Subscription"] || "",
-              settlementAdvance: row["Settlement Advance"] || "",
+              settlementAdvance:
+                row["Settlement Advance"] &&
+                row["Settlement Advance"].trim() !== "0"
+                  ? row["Settlement Advance"]
+                  : "",
               monthlyFees: row["Monthly Fees"] || "",
               settlementPercent: row["Settlement Percentage"] || "",
               noOfEmi: row["No Of EMI"] || "",
@@ -437,9 +444,16 @@ exports.BultEmiInsert = async (req, res) => {
             details: {
               fees: row["Fees %"] || "",
               gst: row["GST %"] || "",
-              serviceFees: row["Service Fees"] || "",
+              serviceFees:
+                row["Service Fees"] && row["Service Fees"].trim() !== "0"
+                  ? row["Service Fees"]
+                  : "",
               monthlySubscription: row["Monthly Subscription"] || "",
-              settlementAdvance: row["Settlement Advance"] || "",
+              settlementAdvance:
+                row["Settlement Advance"] &&
+                row["Settlement Advance"].trim() !== "0"
+                  ? row["Settlement Advance"]
+                  : "",
               monthlyFees: row["Monthly Fees"] || "",
               settlementPercent: row["Settlement Percentage"] || "",
               noOfEmi: row["No Of EMI"] || "",

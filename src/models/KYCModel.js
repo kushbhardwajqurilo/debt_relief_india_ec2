@@ -41,16 +41,6 @@ const kycSchema = new mongoose.Schema({
     type: String,
     default: "0",
   },
-  date: {
-    type: String,
-    default: () => {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const year = now.getFullYear();
-      return `${day}/${month}/${year}`;
-    },
-  },
   email: {
     type: String,
     required: [true, "email missing"],

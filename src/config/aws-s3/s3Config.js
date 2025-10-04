@@ -29,30 +29,24 @@ const deleteFileFromS3 = async (key) => {
   }
 };
 
-const genratePresignedURL = async (files) => {
-  // files = [{ fileName: "test.png", fileType: "image/png" }, { fileName: "hello.jpg", fileType: "image/jpeg" }]
-  const results = [];
+const generatePresignedURL = async (fileName, fileType) => {
+  const key = `kyc_documents/${Date.now()}-${fileName}`;
 
-  for (const file of files) {
-    const key = `kyc_documents/${Date.now()}-${file.fileName}`;
+  const command = new PutObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: key,
+    ContentType: fileType,
+    ACL: "public-read", // secure by default
+  });
 
-    const command = new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
-      Key: key,
-      ContentType: file.fileType,
-      ACL: "public-read",
-    });
+  const uploadURL = await getSignedUrl(s3Client, command, { expiresIn: 300 }); // 5 min
 
-    const uploadURL = await getSignedUrl(s3Client, command, { expiresIn: 60 });
-
-    results.push({
-      uploadURL,
-      fileURL: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
-    });
-  }
-
-  return results;
+  return {
+    uploadURL,
+    fileURL: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+  };
 };
+
 // (async () => {
 //   try {
 //     const reuslt = await genratePresignedURL([
@@ -69,5 +63,5 @@ module.exports = {
   s3Client,
   deleteFileFromS3,
   PutObjectCommand,
-  genratePresignedURL,
+  generatePresignedURL,
 };

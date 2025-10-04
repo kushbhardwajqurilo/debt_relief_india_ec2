@@ -154,7 +154,7 @@ exports.deleteBannerWithTitle = async (req, res, next) => {
     }
 
     // Delete image from s3
-    const del = delteFileFromS3(banner.public_id);
+    const del = deleteFileFromS3(banner.public_id);
     if (del === true) {
       // Delete banner from database
       await bannerWithTitle.findByIdAndDelete(bannerId);
@@ -195,17 +195,31 @@ exports.getBannerWithTitle = async (req, res, next) => {
 };
 exports.deleteBannerWithTitle = async (req, res, next) => {
   try {
-    const bannerId = req.params.id;
-    const isBanner = await bannerWithTitle.findById(bannerId);
+    const { id, public: fileKey } = req.query;
+
+    // Delete from MongoDB
+    const isBanner = await bannerWithTitle.findByIdAndDelete(id);
     if (!isBanner) {
       return res
         .status(404)
         .json({ success: false, message: "Banner not found" });
     }
-    await isBanner.deleteOne();
-    return res
-      .status(200)
-      .json({ success: true, message: "Banner deleted successfully" });
+
+    // Delete from S3
+    const delResponse = await deleteFileFromS3(fileKey);
+
+    if (delResponse && Object.keys(delResponse).length === 0) {
+      return res
+        .status(200)
+        .json({ success: true, message: "Banner deleted successfully" });
+    } else {
+      // This rarely happens, but just in case
+      return res.status(500).json({
+        success: false,
+        message: "Banner deleted from DB, but S3 deletion failed",
+        s3Response: delResponse,
+      });
+    }
   } catch (error) {
     return res.status(500).json({
       success: false,

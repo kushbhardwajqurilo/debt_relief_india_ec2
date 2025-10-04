@@ -11,7 +11,7 @@ const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 const { UserAuthMiddleWare } = require("../middlewares/userMiddleware");
 const KycRouters = require("express").Router();
 
-KycRouters.get("/get-presignedurl", getPresingedURLs);
+KycRouters.post("/get-presignedurl", getPresingedURLs);
 
 KycRouters.post(
   "/add-kyc",

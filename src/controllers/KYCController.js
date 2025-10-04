@@ -14,7 +14,10 @@ const fcmTokenModel = require("../models/fcmTokenModel");
 const {
   customeNoticationModel,
 } = require("../models/contactYourAdvocateModel");
-const { genratePresignedURL } = require("../config/aws-s3/s3Config");
+const {
+  genratePresignedURL,
+  generatePresignedURL,
+} = require("../config/aws-s3/s3Config");
 
 // exports.CompleteKYC = async (req, res, next) => {
 //   try {
@@ -453,34 +456,39 @@ exports.CompleteKYC = async (req, res, next) => {
 };
 
 // get presinged url for upload kyc form in s3
+// POST /api/upload-multiple
 exports.getPresingedURLs = async (req, res) => {
   try {
-    const { files } = req.body;
+    const ALLOWED_TYPES = [
+      "image/png",
+      "image/jpg",
+      "image/jpeg",
+      "image/webp",
+      "application/pdf",
+      "video/x-msvideo",
+    ];
+    const { files } = req.body; // [{ fileName, fileType, size }, ...]
 
-    // Validate request body
-    if (!files || !Array.isArray(files) || files.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Files are required" });
+    if (!files || !files.length) {
+      return res.status(400).json({ error: "No files provided" });
     }
 
-    // Generate presigned URLs concurrently
-    const results = await Promise.all(
-      files.map(async (file) => {
-        const { fileName, fileType } = file;
-        try {
-          const url = await genratePresignedURL(fileName, fileType);
-          return { fileName, url };
-        } catch (err) {
-          console.error(`Failed to generate URL for file ${fileName}`, err);
-          return { fileName, url: null, error: err.message };
-        }
-      })
+    for (let file of files) {
+      if (!ALLOWED_TYPES.includes(file.fileType)) {
+        return res
+          .status(400)
+          .json({ error: `Invalid file type: ${file.fileName}` });
+      }
+    }
+
+    // Generate presigned URLs for all files
+    const urls = await Promise.all(
+      files.map((file) => generatePresignedURL(file.fileName, file.fileType))
     );
 
-    return res.json({ success: true, urls: results });
-  } catch (error) {
-    console.error("Presigned URL Error:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    res.json(urls); // [{uploadURL, fileURL}, ...]
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
   }
 };
