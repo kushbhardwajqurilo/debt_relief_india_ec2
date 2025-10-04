@@ -3,12 +3,15 @@ const {
   ApproveByAdmin,
   getSingleKycDetails,
   getAllKycDetails,
+  getPresingedURLs,
 } = require("../controllers/KYCController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const s3Uploader = require("../middlewares/AWS-S3/S3_UploadMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 const { UserAuthMiddleWare } = require("../middlewares/userMiddleware");
 const KycRouters = require("express").Router();
+
+KycRouters.get("/get-presignedurl", getPresingedURLs);
 
 KycRouters.post(
   "/add-kyc",

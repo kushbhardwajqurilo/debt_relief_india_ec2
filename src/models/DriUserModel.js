@@ -172,8 +172,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "Other",
   },
-  fees: { type: String, default: "N/A" },
-  gst: { type: String, default: "N/A" },
   phone: {
     type: String,
     ref: "kyc",
@@ -232,7 +230,7 @@ const userSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    default: "Pending",
+    default: "pending",
   },
   joinDate: {
     type: Date,

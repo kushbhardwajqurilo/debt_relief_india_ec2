@@ -226,12 +226,8 @@ exports.createTestEmi = async (req, res) => {
           grouped[currentClientName] = {
             clientName: currentClientName,
             phone: row["Phone"] || "",
-            fees: row["Fees %"] || "",
-            gst: row["GST %"] || "",
             insert: row["Insert"] === "true" || false,
             details: {
-              fees: row["Fees %"] || "",
-              gst: row["GST %"] || "",
               serviceFees: row["Service Fees"] || "",
               monthlySubscription: row["Monthly Subscription"] || "",
               settlementAdvance: row["Settlement Advance"] || "",
@@ -327,8 +323,6 @@ exports.createTestEmi = async (req, res) => {
     const userData = {
       name: matchedClient.clientName,
       phone: matchedClient.phone,
-      fees: matchedClient.details.fees,
-      gst: matchedClient.details.gst,
       credit_Cards: matchedClient.creditCards,
       CreditTotal: creditTotal.toString(),
       personal_Loans: matchedClient.personalLoans,

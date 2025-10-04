@@ -43,7 +43,7 @@ const s3Uploader = multer({
 
   fileFilter: fileTypeCheck,
 
-  limits: { fileSize: 40 * 1024 * 1024 }, // 40MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 40MB
 });
 
 module.exports = s3Uploader;

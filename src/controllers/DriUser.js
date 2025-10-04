@@ -75,9 +75,10 @@ exports.importUsersFromCSV = async (req, res) => {
       id: row.id,
       phone: row.Phone,
       joinDate: row.dateOfJoin,
-
+      id: row.UserId,
       status: "N/A",
     }));
+
     // Sare phone numbers nikaale
     const phones = data.map((u) => u.phone);
 
@@ -353,30 +354,23 @@ exports.multipleSoftDelete = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: `${users.modifiedCount} users deleted`,
+        message: `users deleted`,
       });
     }
 
     // Case 2: Delete by phones array
     if (Array.isArray(phones) && phones.length > 0) {
-      users = await DrisModel.updateMany(
-        { phone: { $in: phones } },
-        { $set: { isDelete: true, deletedAt: new Date() } }
-      );
+      users = await DrisModel.deleteMany({ phone: { $in: phones } });
 
       return res.status(200).json({
         success: true,
-        message: `${users.modifiedCount} users deleted`,
+        message: `users deleted`,
       });
     }
 
     // Case 3: Single userId
     if (userIds) {
-      const user = await DrisModel.findOneAndUpdate(
-        { id: userIds },
-        { $set: { isDelete: true, deletedAt: new Date() } },
-        { new: true }
-      );
+      const user = await DrisModel.findOneAndDelete({ id: userIds });
 
       if (!user) {
         return res

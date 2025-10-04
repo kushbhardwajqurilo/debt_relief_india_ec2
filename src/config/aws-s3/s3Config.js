@@ -3,6 +3,7 @@ const {
   DeleteObjectCommand,
   PutObjectCommand,
 } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 
 require("dotenv").config();
 
@@ -28,4 +29,45 @@ const deleteFileFromS3 = async (key) => {
   }
 };
 
-module.exports = { s3Client, deleteFileFromS3, PutObjectCommand };
+const genratePresignedURL = async (files) => {
+  // files = [{ fileName: "test.png", fileType: "image/png" }, { fileName: "hello.jpg", fileType: "image/jpeg" }]
+  const results = [];
+
+  for (const file of files) {
+    const key = `kyc_documents/${Date.now()}-${file.fileName}`;
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      ContentType: file.fileType,
+      ACL: "public-read",
+    });
+
+    const uploadURL = await getSignedUrl(s3Client, command, { expiresIn: 60 });
+
+    results.push({
+      uploadURL,
+      fileURL: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+    });
+  }
+
+  return results;
+};
+// (async () => {
+//   try {
+//     const reuslt = await genratePresignedURL([
+//       { fileName: "test.png", fileType: "image/png" },
+//       { fileName: "hello.jpg", fileType: "image/jpeg" },
+//       { fileName: "xyz.pdf", fileType: "application/pdf" },
+//     ]);
+//     console.log("url", reuslt);
+//   } catch (err) {
+//     console.log("err", err);
+//   }
+// })();
+module.exports = {
+  s3Client,
+  deleteFileFromS3,
+  PutObjectCommand,
+  genratePresignedURL,
+};
