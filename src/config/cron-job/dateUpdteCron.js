@@ -37,7 +37,7 @@ async function monthlySubsciptionDueDateUpdate() {
 
     let dueDate = new Date(rec.dueDate);
     dueDate.setHours(0, 0, 0, 0);
-    if (today >= dueDate) {
+    if (today > dueDate) {
       dueDate.setMonth(dueDate.getMonth() + 1);
       rec.dueDate = dueDate;
       await rec.save();

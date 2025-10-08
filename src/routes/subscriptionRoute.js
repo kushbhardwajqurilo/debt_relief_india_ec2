@@ -5,6 +5,8 @@ const {
   deleteSubscription,
   updateSubscription,
   getAllUserToAdmin,
+  markSubscriptionAsPaid,
+  getPaidSubscriptions,
 } = require("../controllers/admin/monthlySubsciption");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
@@ -17,11 +19,7 @@ subscriptionRouter.post(
   roleAuthenticaton("admin"),
   SubscriptionsController
 );
-subscriptionRouter.get(
-  "/get-substouser",
-  UserAuthMiddleWare,
-  getUsersSubscriptionToUser
-);
+subscriptionRouter.get("/get-substouser/:id", getUsersSubscriptionToUser);
 subscriptionRouter.get(
   "/get-substoadmin",
   AuthMiddleWare,
@@ -47,4 +45,12 @@ subscriptionRouter.get(
   getAllUserToAdmin
 );
 
+subscriptionRouter.post(
+  "/markAsPaid",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  markSubscriptionAsPaid
+);
+
+subscriptionRouter.get("/getPaidSubscriptions", getPaidSubscriptions);
 module.exports = subscriptionRouter;

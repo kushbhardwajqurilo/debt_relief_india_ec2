@@ -1,9 +1,13 @@
 const { default: mongoose } = require("mongoose");
 const adminModel = require("../../models/adminModel");
 const User = require("../../models/userModel");
-const subscriptionModel = require("../../models/monthlySubscriptionModel");
+
 const DrisModel = require("../../models/DriUserModel");
 const KYCmodel = require("../../models/KYCModel");
+const {
+  subscriptionModel,
+  paidSubscriptionModel,
+} = require("../../models/monthlySubscriptionModel");
 exports.SubscriptionsController = async (req, res, next) => {
   try {
     const validation = {
@@ -107,11 +111,11 @@ exports.getUsersSubscriptionToAdmin = async (req, res, next) => {
 // get  perticular user subscriptions for user...
 exports.getUsersSubscriptionToUser = async (req, res, next) => {
   try {
-    const { user_id } = req;
-    console.log("user_id", user_id);
+    const { id } = req.params;
+    console.log("id", id);
     const subscription = await subscriptionModel
-      .find({ userId: user_id })
-      .select("-_id -adminId -__v");
+      .find({ userId: id })
+      .select("-adminId -__v");
     if (!subscription || subscription.length === 0) {
       return res
         .status(400)
@@ -260,7 +264,6 @@ exports.getAllUserToAdmin = async (req, res) => {
           _id: kyc.user_id, // from KYCmodel (not DrisModel)
         };
       });
-
     return res.status(200).json({ success: true, data: formateUser });
   } catch (error) {
     return res.status(500).json({
@@ -270,3 +273,95 @@ exports.getAllUserToAdmin = async (req, res) => {
     });
   }
 };
+
+//  paid subscriptions
+
+// Mark subscription as paid
+exports.markSubscriptionAsPaid = async (req, res) => {
+  try {
+    const { subscriptionId, paymentMode, transactionId } = req.body;
+    const adminId = req.admin_id; // from auth middleware
+
+    if (!subscriptionId) {
+      return res.status(400).json({ message: "Subscription ID is required" });
+    }
+
+    // 1️⃣ Find the subscription
+    const subscription = await subscriptionModel.findById(subscriptionId);
+    if (!subscription) {
+      return res.status(404).json({ message: "Subscription not found" });
+    }
+
+    // 2️⃣ Mark current month as paid
+    subscription.isPaid = true;
+    await subscription.save();
+
+    // 3️⃣ Add entry to paidSubscription
+    const paidSub = await paidSubscriptionModel.create({
+      subscriptionId: subscription._id,
+      userId: subscription.userId,
+      adminId: subscription.adminId,
+      paidForMonth: new Date(subscription.dueDate).toLocaleString("default", {
+        month: "long",
+        year: "numeric",
+      }),
+      paidForDueDate: subscription.dueDate,
+      amount: subscription.amount,
+      gst: subscription.gst,
+      totalAmount:
+        subscription.amount + (subscription.amount * subscription.gst) / 100,
+      paymentMode: paymentMode || "UPI",
+      transactionId: transactionId || null,
+      status: "paid",
+    });
+
+    // 4️⃣ Increment subscription dueDate by 1 month and reset isPaid
+    if (subscription.dueDate) {
+      const nextDueDate = new Date(subscription.dueDate);
+      nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+
+      subscription.dueDate = nextDueDate;
+      subscription.isPaid = false; // mark next month as unpaid
+      await subscription.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Subscription marked as paid successfully",
+      paidSubscription: paidSub,
+    });
+  } catch (error) {
+    console.error("Error marking subscription as paid:", error);
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// Get all paid subscriptions
+exports.getPaidSubscriptions = async (req, res) => {
+  try {
+    const adminId = req.admin_id;
+    const { userId } = req.query; // optional filters
+
+    const filter = {};
+    if (userId) filter.userId = userId;
+    if (adminId) filter.adminId = adminId;
+
+    const paidSubs = await paidSubscriptionModel
+      .find(filter)
+      .populate("userId", "name email") // optional: populate user info
+      .populate("adminId", "name email") // optional: populate admin info
+      .populate("subscriptionId", "subscription amount gst dueDate") // optional: populate subscription info
+      .sort({ paidForDueDate: -1 });
+
+    return res.status(200).json({ success: true, data: paidSubs });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// data [
+//   {
+
+//   }
+// ]

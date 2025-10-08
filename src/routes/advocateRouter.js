@@ -5,6 +5,7 @@ const {
   getAllAdvocates,
   serviceTiming,
   getAdvocateTiming,
+  deleteAdvocate,
 } = require("../controllers/admin/advocateController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const s3AdvoateUpload = require("../middlewares/AdvocateImageMiddleware");
@@ -23,5 +24,12 @@ advocateRouter.get("/single/:id", getSingleAdvocate);
 advocateRouter.get("/all", getAllAdvocates);
 advocateRouter.post("/set-timing", AuthMiddleWare, serviceTiming);
 advocateRouter.get("/get-timing", getAdvocateTiming);
+
+advocateRouter.delete(
+  "/delete-advocate/:id",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  deleteAdvocate
+);
 
 module.exports = advocateRouter;

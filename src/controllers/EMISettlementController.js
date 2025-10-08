@@ -173,17 +173,40 @@ exports.marksAsPaid = async (req, res) => {
     if (user.emiPay === 0) {
       return res.status(400).json({
         success: false,
-        message: "Cannot mark paid. EMI payment is 0",
+        message: "Cannot mark paid. EMI is 0",
       });
     }
-
+    if (user.status === "paid") {
+      return res
+        .status(200)
+        .json({ success: false, message: "currently no emi pending" });
+    }
     // 🔹 Update status if emiPay > 0
     user.status = "paid";
+
+    // 🔹 Increment next payment date (if it exists)
+    if (user.nextDueDate) {
+      const currentDate = new Date(user.nextDueDate);
+      currentDate.setMonth(currentDate.getMonth() + 1); // ✅ adds 1 month
+      user.nextDueDate = currentDate;
+    } else {
+      // if no due date yet, set new one 30 days from now
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + 30);
+      user.nextDueDate = nextDate;
+    }
+
+    // 🔹 Save updated user
     await user.save();
 
     return res.status(200).json({
       success: true,
-      message: "Marked as Paid Successfully",
+      message: "Marked as Paid Successfully & Date Incremented",
+      data: {
+        phone: user.phone,
+        nextDueDate: user.nextDueDate,
+        status: user.status,
+      },
     });
   } catch (err) {
     return res.status(500).json({

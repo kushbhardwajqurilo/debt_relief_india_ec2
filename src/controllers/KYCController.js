@@ -347,7 +347,7 @@ exports.CompleteKYC = async (req, res, next) => {
     const imageResults = [];
     const pdfResults = [];
     const { user_id } = req;
-    const { name, lastname, email, gender, phone } = req.body;
+    const { name, lastname, email, gender, phone, files } = req.body;
 
     // 1. Basic validation
     if (!name || !user_id) {
@@ -385,15 +385,24 @@ exports.CompleteKYC = async (req, res, next) => {
       }
     }
 
-    // 5. Process uploaded files from S3
-    if (req.files && Array.isArray(req.files)) {
-      for (const file of req.files) {
-        const ext = file.originalname.split(".").pop().toLowerCase();
+    // 5. Process files from req.body.files
+    let profileImage = "";
+    if (files && typeof files === "object") {
+      for (const [key, url] of Object.entries(files)) {
+        if (!url) continue; // skip empty values
+        const lowerUrl = url.toLowerCase();
 
-        if (ext === "pdf") {
-          pdfResults.push(file.location); // S3 PDF URL
+        // set profile image if key is 'photo'
+        if (key === "photo") {
+          profileImage = url;
+          continue; // don't re-check this one
+        }
+
+        // check file type
+        if (lowerUrl.endsWith(".pdf")) {
+          pdfResults.push(url);
         } else {
-          imageResults.push(file.location); // S3 image URL
+          imageResults.push(url);
         }
       }
     }
@@ -401,7 +410,7 @@ exports.CompleteKYC = async (req, res, next) => {
     // 6. Prepare KYC data
     const payload = {
       user_id,
-      profile: imageResults[0] || "",
+      profile: profileImage || "",
       name,
       lastname,
       email,
@@ -426,7 +435,7 @@ exports.CompleteKYC = async (req, res, next) => {
     const upload_message =
       custom_notification?.[0]?.kyc_submit ||
       `Dear ${uploadKyc.name}, your KYC documents have been submitted.`;
-    ("Debt Relief India");
+
     if (expoToken?.token) {
       await sendNotificationToSingleUser(
         expoToken.token,
@@ -436,10 +445,9 @@ exports.CompleteKYC = async (req, res, next) => {
     }
 
     await createNotification(
-      expoToken.userId,
+      expoToken?.userId,
       "Debt Relief India",
-      upload_message ||
-        `Dear ${uploadKyc.name}, your KYC documents have been submitted.`,
+      upload_message,
       "kyc"
     );
 
@@ -467,8 +475,8 @@ exports.getPresingedURLs = async (req, res) => {
       "application/pdf",
       "video/x-msvideo",
     ];
+    console.log("fies", req.body);
     const { files } = req.body; // [{ fileName, fileType, size }, ...]
-
     if (!files || !files.length) {
       return res.status(400).json({ error: "No files provided" });
     }

@@ -20,6 +20,10 @@ const advocateSchema = mongoose.Schema(
     assignUsers: {
       type: [String],
     },
+    isDelete: {
+      type: Boolean,
+      default: false,
+    },
   },
   { strict: false }
 );

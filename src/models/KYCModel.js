@@ -50,6 +50,10 @@ const kycSchema = new mongoose.Schema({
     type: String,
     required: [true, "gender required"],
   },
+  joinDate: {
+    type: Date,
+    default: Date.now(),
+  },
   assign_advocate: {
     type: String,
     ref: "advocate",

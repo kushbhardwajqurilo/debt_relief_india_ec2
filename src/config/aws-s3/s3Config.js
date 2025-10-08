@@ -47,18 +47,6 @@ const generatePresignedURL = async (fileName, fileType) => {
   };
 };
 
-// (async () => {
-//   try {
-//     const reuslt = await genratePresignedURL([
-//       { fileName: "test.png", fileType: "image/png" },
-//       { fileName: "hello.jpg", fileType: "image/jpeg" },
-//       { fileName: "xyz.pdf", fileType: "application/pdf" },
-//     ]);
-//     console.log("url", reuslt);
-//   } catch (err) {
-//     console.log("err", err);
-//   }
-// })();
 module.exports = {
   s3Client,
   deleteFileFromS3,

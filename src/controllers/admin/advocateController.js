@@ -34,56 +34,51 @@ exports.addAdvocate = async (req, res, next) => {
 exports.updateAdvocate = async (req, res, next) => {
   try {
     const { admin_id } = req;
-    const imagePath = req.file;
+    const imagePath = req.file; // uploaded file
     const { name, contact, id } = req.body;
+
+    console.log("path", imagePath);
+
     if (!admin_id) return res.status(401).json({ message: "Admin id missing" });
+
     if (!mongoose.Types.ObjectId.isValid(admin_id))
       return res
-        .status(200)
+        .status(400)
         .json({ success: false, message: "Admin Id should be ObjectId" });
+
     if (!id)
       return res
-        .status(200)
-        .json({ success: false, message: "Advocate Id require" });
+        .status(400)
+        .json({ success: false, message: "Advocate Id required" });
+
     if (!mongoose.Types.ObjectId.isValid(id))
       return res
-        .status(200)
-        .json({ success: false, message: "advocate id must be ObjectId" });
-    if (!name || !whatsapp || !contact)
+        .status(400)
+        .json({ success: false, message: "Advocate Id must be ObjectId" });
+
+    if (!name || !contact)
       return res
         .status(400)
         .json({ success: false, message: "Advocate credentials missing" });
-    const payload = { name, contactNumber: contact };
+
     const isAdvocate = await advocateModel.findById(id);
     if (!isAdvocate)
       return res
-        .status(400)
-        .json({ success: false, message: "advocate not found" });
-    if (imagePath) {
-      //delete exist image
-      const existImage = await cloudinay.uploader.destroy(
-        isAdvocate.imagePublicKey
-      );
-      if (existImage.result == "ok") {
-        const profileImage = await cloudinay.uploader.upload(imagePath.path, {
-          folder: "Advacte Images",
-          public: isAdvocate.imagePublicKey,
-          overwrite: true,
-        });
-        fs.unlinkSync(imagePath.path);
-        payload.advocateImage = profileImage.secure_url;
-        payload.imagePublicKey = profileImage.public_id;
-        await isAdvocate.updateOne(payload);
-        isAdvocate.save();
-        return res
-          .status(201)
-          .json({ success: true, message: "Profile Update.." });
-      }
-    }
+        .status(404)
+        .json({ success: false, message: "Advocate not found" });
+
+    const payload = {
+      name,
+      contactNumber: contact,
+      advocateImage: imagePath?.location || isAdvocate.advocateImage,
+      imagePublicKey: imagePath?.key || isAdvocate.imagePublicKey,
+    };
+
     await isAdvocate.updateOne(payload);
-    isAdvocate.save();
-    return res.status(201).json({ success: true, message: "Profile Update.." });
+
+    return res.status(200).json({ success: true, message: "Profile Updated" });
   } catch (err) {
+    console.error(err);
     return res.status(500).json({ message: err.message, success: false });
   }
 };
@@ -98,10 +93,16 @@ exports.getSingleAdvocate = async (req, res, next) => {
         .json({ success: false, message: "Advocate id must be ObjectId" });
     }
     const advocate = await advocateModel.findById(id);
-    if (!advocate)
+    if (!advocate) {
       return res
         .status(404)
-        .json({ success: false, message: "failed to fetch" });
+        .json({ success: false, message: "Advocate Not Found" });
+    }
+    if (advocate.isDelete === true) {
+      return res
+        .status(400)
+        .json({ success: false, messae: "Advocate not available" });
+    }
     return res.status(200).json({ success: true, data: advocate });
   } catch (error) {
     return res.status(500).json({ message: error.message, success: false });
@@ -111,7 +112,7 @@ exports.getSingleAdvocate = async (req, res, next) => {
 // get all advocates
 exports.getAllAdvocates = async (req, res, next) => {
   try {
-    const advocates = await advocateModel.find({});
+    const advocates = await advocateModel.find({ isDelete: { $ne: true } });
     if (!advocates) {
       return res
         .status(404)
@@ -157,5 +158,41 @@ exports.getAdvocateTiming = async (req, res, next) => {
     return res.status(200).json({ success: true, timing });
   } catch (error) {
     return res.status(500).json({ message: error.message, success: false });
+  }
+};
+
+// advocate delete
+exports.deleteAdvocate = async (req, res, next) => {
+  try {
+    const validation = { admin_id: "", id: "" };
+    const { admin_id } = req;
+    const { id } = req.params;
+    Object.keys(validation).forEach((key) => {
+      if (!req[key] && !req.params[key] && !req.query[key] && !req.body[key]) {
+        console.log(`${key} is missing`);
+      }
+    });
+    const isAdmin = await adminModel.findById(admin_id);
+    if (!isAdmin) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Un-authorized Admin" });
+    }
+    const isAdvocate = await advocateModel.findOneAndUpdate(
+      { _id: id },
+      { $set: { isDelete: true } }
+    );
+    if (!isAdvocate) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Failed to delete" });
+    }
+    return res
+      .status(200)
+      .json({ success: true, message: "Advocate profile removed." });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message, error });
   }
 };
