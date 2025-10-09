@@ -132,6 +132,29 @@ exports.getUsersSubscriptionToUser = async (req, res, next) => {
     });
   }
 };
+exports.getSubscriptionToUser = async (req, res, next) => {
+  try {
+    const { user_id } = req;
+    const subscription = await subscriptionModel
+      .find({ userId: user_id })
+      .select("-adminId -__v");
+    if (!subscription || subscription.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "You don’t have an subscription" });
+    }
+    return res.status(200).json({
+      success: true,
+      data: subscription,
+    });
+  } catch (err) {
+    console.log("error", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 //update subscription by admin...
 exports.updateSubscription = async (req, res, next) => {

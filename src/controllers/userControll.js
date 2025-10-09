@@ -175,6 +175,29 @@ exports.userController = async (req, res, next) => {
     });
   }
 };
+exports.userControllerForAdmin = async (req, res, next) => {
+  try {
+    const { user_id } = req.body;
+    if (!user_id) {
+      return res
+        .status(404)
+        .json({ success: false, message: "user id missing" });
+    }
+    const userData = await User.findOne({ _id: user_id });
+    if (!userData) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User Not Found" });
+    }
+    return res.status(200).json({ success: true, userData });
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+      error: err,
+    });
+  }
+};
 
 //  create user
 

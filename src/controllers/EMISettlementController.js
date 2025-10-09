@@ -13,6 +13,13 @@ const {
 } = require("./notificationController/notificationsController");
 const csvParser = require("csv-parser");
 const { default: mongoose } = require("mongoose");
+const NotificationModel = require("../models/NotificationModel");
+const {
+  customeNoticationModel,
+} = require("../models/contactYourAdvocateModel");
+
+const { paidSubscriptionModel } = require("../models/monthlySubscriptionModel");
+const PaidService = require("../models/paidServicesModel");
 
 exports.EMIPayment = async (req, res, next) => {
   try {
@@ -143,77 +150,104 @@ exports.ManualEmiUpload = async (req, res, next) => {
 // mark as paid emi
 exports.marksAsPaid = async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, user_id } = req.body;
     const { admin_id } = req;
 
-    if (!phone) {
-      return res.status(400).json({
-        success: false,
-        message: "Phone number required",
-      });
-    }
+    if (!phone)
+      return res
+        .status(400)
+        .json({ success: false, message: "Phone number required" });
+    if (!admin_id)
+      return res
+        .status(400)
+        .json({ success: false, message: "Admin credentials missing" });
 
-    if (!admin_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Admin credentials missing",
-      });
-    }
-
-    // 🔹 Find user first
     const user = await DrisModel.findOne({ phone });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
 
-    // 🔹 Check emiPay > 0
-    if (user.emiPay === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot mark paid. EMI is 0",
-      });
-    }
-    if (user.status === "paid") {
+    if (user.emiPay === 0)
+      return res
+        .status(400)
+        .json({ success: false, message: "Cannot mark paid. EMI is 0" });
+    if (user.status === "paid")
       return res
         .status(200)
-        .json({ success: false, message: "currently no emi pending" });
-    }
-    // 🔹 Update status if emiPay > 0
-    user.status = "paid";
+        .json({ success: false, message: "Currently no EMI pending" });
+    if (user.invoiceInsert === false)
+      return res
+        .status(200)
+        .json({
+          success: false,
+          message: "EMI invoice pending or not available.",
+        });
 
-    // 🔹 Increment next payment date (if it exists)
-    if (user.nextDueDate) {
-      const currentDate = new Date(user.nextDueDate);
-      currentDate.setMonth(currentDate.getMonth() + 1); // ✅ adds 1 month
-      user.nextDueDate = currentDate;
-    } else {
-      // if no due date yet, set new one 30 days from now
-      const nextDate = new Date();
-      nextDate.setDate(nextDate.getDate() + 30);
-      user.nextDueDate = nextDate;
-    }
+    user.invoiceInsert = false;
 
-    // 🔹 Save updated user
+    // 🔹 Helpers for date
+    const parseDDMMYYYY = (dateStr) => {
+      const [day, month, year] = dateStr.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const formatDDMMYYYY = (date) => {
+      return `${String(date.getDate()).padStart(2, "0")}-${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}-${date.getFullYear()}`;
+    };
+
+    const formatDDMMYYYY_slash = (date) => {
+      return `${String(date.getDate()).padStart(2, "0")}/${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}/${date.getFullYear()}`;
+    };
+
+    const addMonth = (date, months = 1) => {
+      const d = new Date(date);
+      const day = d.getDate();
+      d.setMonth(d.getMonth() + months);
+      if (d.getDate() !== day) d.setDate(0); // month rollover
+      return d;
+    };
+
+    // 🔹 Increment dueDate in DrisModel (DD-MM-YYYY)
+    const currentDate = parseDDMMYYYY(user.dueDate);
+    const newDueDate = addMonth(currentDate, 1);
+    user.dueDate = formatDDMMYYYY(newDueDate);
+
+    // 🔹 PaidService date in DD/MM/YYYY string (same as frontend)
+    const payload = {
+      userId: user_id,
+      serviceName: user.serviceFees ? "Service Fees" : "Service Advance",
+      emiNo: user.emiPay,
+      emiAmount: user.monthlyEmi,
+      date: formatDDMMYYYY_slash(currentDate), // use original dueDate in DD/MM/YYYY
+    };
+
+    const paidService = await PaidService.create(payload);
+    if (!paidService)
+      return res
+        .status(400)
+        .json({ success: false, message: "Mark Paid Failed" });
+
     await user.save();
 
     return res.status(200).json({
       success: true,
-      message: "Marked as Paid Successfully & Date Incremented",
+      message: "Marked as Paid & Due Date Updated (+1 Month)",
       data: {
         phone: user.phone,
-        nextDueDate: user.nextDueDate,
+        newDueDate: user.dueDate,
         status: user.status,
       },
     });
   } catch (err) {
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-      error: err.message,
-    });
+    console.error("Error in marksAsPaid:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: err.message, error: err.message });
   }
 };
 
@@ -437,7 +471,7 @@ exports.BultEmiInsert = async (req, res) => {
     const filePath = req.file.path;
     const jsonArray = await csv().fromFile(filePath);
 
-    // Clean CSV
+    // ✅ Clean CSV data
     const cleanData = jsonArray.filter((row) => {
       const isEmptyRow = Object.values(row).every(
         (value) => !value || value.toString().trim() === ""
@@ -449,7 +483,7 @@ exports.BultEmiInsert = async (req, res) => {
       return !isHeaderRow;
     });
 
-    // Group by client name
+    // ✅ Group by client name
     const grouped = {};
     let currentClientName = null;
 
@@ -492,25 +526,24 @@ exports.BultEmiInsert = async (req, res) => {
       if (!currentClientName) return;
       const client = grouped[currentClientName];
 
-      // ✅ Fix: Always update dueDate if row has value
+      // ✅ Always update dueDate if row has value
       if (row["Due Date"] && row["Due Date"].trim() !== "") {
         client.details.dueDate = row["Due Date"].trim();
       }
 
-      // Credit Card
+      // ✅ Credit Card
       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
         const amount = parseFloat(row["Amount"] || 0);
         const settlementPercent = parseFloat(row["CC Settlement"] || 0);
-
         const estimatedSettlement = (amount * settlementPercent) / 100;
         const estimatedSaving = amount - estimatedSettlement;
 
         client.creditCards.push({
           bank: row["Credit Card"],
-          amount: amount,
+          amount,
           settlement: settlementPercent,
           total: row["CC Total"] || "",
-          estimatedSettlement: estimatedSettlement,
+          estimatedSettlement,
           saving: estimatedSaving,
           finalOutstandingAmount: "",
           finalSettelement: "",
@@ -520,20 +553,19 @@ exports.BultEmiInsert = async (req, res) => {
         });
       }
 
-      // Personal Loan
+      // ✅ Personal Loan
       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
         const amount = parseFloat(row["PL Amount"] || 0);
         const settlementPercent = parseFloat(row["PL Settlement"] || 0);
-
         const estimatedSettlement = (amount * settlementPercent) / 100;
         const estimatedSaving = amount - estimatedSettlement;
 
         client.personalLoans.push({
           bank: row["Personal Loan"],
-          amount: amount,
+          amount,
           settlement: settlementPercent,
           total: row["PL Total"] || "",
-          estimatedSettlement: estimatedSettlement,
+          estimatedSettlement,
           saving: estimatedSaving,
           finalOutstandingAmount: "",
           finalSettelement: "",
@@ -549,22 +581,18 @@ exports.BultEmiInsert = async (req, res) => {
     const notificationTasks = [];
 
     for (const client of allClients) {
-      if (client.insert === true) continue; // Skip users with insert=true
+      if (client.insert === true) continue;
 
-      // Check if user exists in DrisModel
       const existingUser = await DrisModel.findOne({ phone: client.phone });
       if (!existingUser) {
-        console.log(
-          `User with phone ${client.phone} does not exist. Skipping.`
-        );
-        continue; // Skip this client if not exists
+        console.log(`⚠️ User with phone ${client.phone} not found. Skipping.`);
+        continue;
       }
 
       const creditTotal = client.creditCards.reduce(
         (sum, card) => sum + (parseFloat(card.total) || 0),
         0
       );
-
       const plTotal = client.personalLoans.reduce(
         (sum, loan) => sum + (parseFloat(loan.total) || 0),
         0
@@ -584,57 +612,76 @@ exports.BultEmiInsert = async (req, res) => {
         Settlement_Percent: client.details.settlementPercent,
         totalEmi: parseInt(client.details.noOfEmi || "0"),
         monthlyEmi: parseFloat(client.details.emiAmount || "0"),
-        dueDate: client.details.dueDate || "", // ✅ will always be last non-empty CSV value
+        dueDate: client.details.dueDate || "",
         insert: true,
         status: "pending",
       };
 
-      // Prepare bulkWrite operation without upsert
+      // ✅ Update user data
       bulkOps.push({
         updateOne: {
           filter: { phone: client.phone },
           update: { $set: userData },
-          upsert: false, // no insert if not exists
+          upsert: false,
         },
       });
 
-      // Prepare notification task for this user
+      // ✅ Fetch notification template safely
+
+      // ✅ Prepare notification task
       notificationTasks.push(async () => {
-        const token = await getSingleUserToken(client.phone);
-        if (token.status === true && token.userId) {
-          const message = `Dear ${userData.name}, your EMI has been issued. Debt Relief India will send you Monthly Invoice.`;
-          await sendNotificationToSingleUser(
-            token,
-            message,
-            "Debt Relief India",
-            "emi"
-          );
-          await createNotification(
-            token.userId,
-            "Debt Relief India",
-            message,
-            "emi"
+        try {
+          const token = await getSingleUserToken(client.phone);
+          if (token.status === true && token.userId) {
+            const message = `Dear ${userData.name}, Your Settlements has been issued!`;
+            console.log("message", message);
+            await sendNotificationToSingleUser(
+              token,
+              message,
+              "Debt Relief India",
+              "emi"
+            );
+            await createNotification(
+              token.userId,
+              "Debt Relief India",
+              message,
+              "emi"
+            );
+            console.log("✅ Notification sent to", client.phone);
+          } else {
+            console.log("⚠️ No valid token for", client.phone);
+          }
+        } catch (err) {
+          console.log(
+            "❌ Error sending notification for",
+            client.phone,
+            err.message
           );
         }
       });
     }
 
-    // Execute bulk write
+    // ✅ Bulk update all users
     if (bulkOps.length > 0) {
       await DrisModel.bulkWrite(bulkOps);
     }
 
-    // Execute notifications in parallel
-    await Promise.all(notificationTasks.map((task) => task()));
+    // ✅ Execute notifications in small batches
+    console.log("📤 Total notifications to send:", notificationTasks.length);
+    for (let i = 0; i < notificationTasks.length; i += 10) {
+      const batch = notificationTasks.slice(i, i + 10);
+      await Promise.all(batch.map((task) => task()));
+    }
 
     return res.status(201).json({
       success: true,
-      message: "EMI processing completed",
+      message: "EMI processing completed successfully",
       totalProcessed: bulkOps.length,
+      totalNotifications: notificationTasks.length,
       totalSkipped: allClients.filter((c) => c.insert === true).length,
     });
   } catch (error) {
-    console.log("Error processing CSV:", error);
+    console.log("❌ Error processing CSV:", error);
     return res.status(500).json({
       success: false,
       message: "Error while processing CSV",
@@ -760,7 +807,25 @@ exports.outstandingController = async (req, res) => {
 //       .json({ success: false, message: error.message, error });
 //   }
 
-// "मुलाक़ात की ख्वाहिश दिल में ही रह गई,
-// वो चेहरा जिसे देखा नहीं, रूह में बस गई।
-// प्यार अधूरा सही, मगर सच्चा है मेरा,
-// जुदाई का दर्द भी अब मेरी पहचान बन गई।"
+// get paid services
+
+exports.getPaidSerivcesToEachUser = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+    console.log("idss", user_id);
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "user info not required",
+      });
+    }
+    const service = await PaidService.find({ userId: user_id });
+    console.log(service);
+    if (!service || service.length === 0) {
+      return res.status(400).json({ success: false, message: "failed fetch" });
+    }
+    return res.status(200).json({ success: true, data: service });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error });
+  }
+};

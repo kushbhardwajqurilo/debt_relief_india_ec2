@@ -13,7 +13,9 @@ const {
   getUserProfile,
   getAllSavingToUser,
   updateUserProfilePicture,
+  userControllerForAdmin,
 } = require("../controllers/userControll");
+const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const s3Uploader = require("../middlewares/AWS-S3/S3_UploadMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 // const limiter = require("../middlewares/rateLimitMiddleware");
@@ -29,7 +31,8 @@ userRouter.put("/change-phone", changePhoneNumber);
 userRouter.post("/verify-otp", verifyOTP);
 userRouter.post("/user-savings", UserAuthMiddleWare, userSaving);
 userRouter.get("/get-user", UserAuthMiddleWare, userController);
-userRouter.get("/get-user-saving", UserAuthMiddleWare, getSavingByMonthYear);
+userRouter.get("/get-user-admin", UserAuthMiddleWare, userController);
+userRouter.post("/get-user-saving", AuthMiddleWare, userControllerForAdmin);
 userRouter.get("/get-savings", UserAuthMiddleWare, getAllSavingToUser);
 userRouter.patch(
   "/update-profile",

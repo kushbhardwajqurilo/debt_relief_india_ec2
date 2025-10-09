@@ -7,6 +7,7 @@ const {
   createTestEmi,
   BultEmiInsert,
   outstandingController,
+  getPaidSerivcesToEachUser,
 } = require("../controllers/EMISettlementController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
@@ -15,6 +16,7 @@ const ExcleUpload = require("../middlewares/xlsxMiddleware");
 
 const EmiSettlementRoute = require("express").Router();
 
+EmiSettlementRoute.get("/get-paid-service/:user_id", getPaidSerivcesToEachUser);
 // EmiSettlementRoute.post("/create-emi", csvUpload.single("file"), EMISettlement);
 EmiSettlementRoute.post("/create-emi", csvUpload.single("file"), createTestEmi);
 EmiSettlementRoute.post("/bulk-insert", csvUpload.single("csv"), BultEmiInsert);

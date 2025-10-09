@@ -208,7 +208,7 @@ exports.uploadInvoice = async (req, res, next) => {
       { phone },
       {
         $inc: { emiPay: 1 },
-        $set: { status: "pending" },
+        $set: { status: "pending", invoiceInsert: true },
       },
       { new: true, upsert: true }
     );

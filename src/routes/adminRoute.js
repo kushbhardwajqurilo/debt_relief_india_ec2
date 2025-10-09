@@ -73,8 +73,8 @@ adminRouter.post("/add-banks", UploadSingleImage.single("image"), addBanks);
 adminRouter.get("/get-banks", getBanks);
 
 //regarding change password routes
-adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
-adminRouter.post("/verify-otp", AuthMiddleWare, verifyOtpForAdmin);
+adminRouter.post("/request-otp", requestOtp);
+adminRouter.post("/verify-otp", verifyOtpForAdmin);
 adminRouter.put("/change-password", forgetPasswordMddleware, changePasswprd);
 adminRouter.post("/call-now-feature", AuthMiddleWare, callNowSetup);
 adminRouter.get("/get-advocate-call", getYourContactCall);

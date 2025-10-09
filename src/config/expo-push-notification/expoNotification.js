@@ -14,7 +14,7 @@ async function sendNotificationToSingleUser(
     console.warn("Invalid Expo token:", token);
     return { success: false, message: "Invalid Expo push token" };
   }
-
+  console.log("tokesss", token);
   const messages = [
     {
       to: token,

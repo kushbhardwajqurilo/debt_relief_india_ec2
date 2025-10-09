@@ -235,6 +235,7 @@ const userSchema = new mongoose.Schema({
   dueDate: {
     type: String,
   },
+  invoiceInsert: { type: Boolean, default: false },
   insert: {
     type: Boolean,
     default: false,
@@ -253,4 +254,5 @@ const userSchema = new mongoose.Schema({
 });
 
 const DrisModel = mongoose.model("DriUser", userSchema);
+
 module.exports = DrisModel;
