@@ -143,7 +143,6 @@ exports.getSubscriptionToUser = async (req, res, next) => {
         .status(400)
         .json({ message: "You don’t have an subscription" });
     }
-    console.log("sibsc", subsc);
     return res.status(200).json({
       success: true,
       data: subscription,

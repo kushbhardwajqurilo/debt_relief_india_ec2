@@ -439,7 +439,6 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
 exports.permanentDeleteUserData = async (req, res) => {
   try {
     const { userIds, phones } = req.body;
-    console.log(userIds, phones);
     if (
       (!Array.isArray(userIds) || userIds.length === 0) &&
       (!Array.isArray(phones) || phones.length === 0)
@@ -467,7 +466,6 @@ exports.permanentDeleteUserData = async (req, res) => {
     const deleteOperations = [
       phoneFilter ? DrisModel.deleteMany(phoneFilter) : null,
       userIdFilter ? fcmTokenModel.deleteMany(userIdFilter) : null,
-      KYCmodel.deleteMany(kycFilter),
       userIdFilter ? NotificationModel.deleteMany(userIdFilter) : null,
       userIdFilter ? paidSubscriptionModel.deleteMany(userIdFilter) : null,
       userIdFilter ? subscriptionModel.deleteMany(userIdFilter) : null,
@@ -475,6 +473,7 @@ exports.permanentDeleteUserData = async (req, res) => {
       user_idFilter ? userSavingsModel.deleteMany(user_idFilter) : null,
     ].filter(Boolean); // Remove nulls if filter not present
 
+    const delelteKyc = await KYCmodel.deleteMany({ phone: phones });
     // Run all deletions in parallel
     const results = await Promise.all(deleteOperations);
 
@@ -495,3 +494,5 @@ exports.permanentDeleteUserData = async (req, res) => {
     });
   }
 };
+
+//  1 inside DrisModel delelte data from phone, 2 FcmTokens model have userId for delete, 3. Invoice also vale phone for delete , 4. kycmodel have phone or user_id, 5. notification model contain userId, 6.paidSubscription model contain userId, 7. paidSubscrioption model also contain userId, sbscriptionModel also contain userId, userModel also conntain phone, usersaivng modle contain user_id now delete data from all these collection by there field of match
