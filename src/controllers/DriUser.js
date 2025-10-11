@@ -438,7 +438,8 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
 //
 exports.permanentDeleteUserData = async (req, res) => {
   try {
-    const { userIds, phones } = req.body;
+    const { userIds = [], phones = [] } = req.body;
+
     if (
       (!Array.isArray(userIds) || userIds.length === 0) &&
       (!Array.isArray(phones) || phones.length === 0)
@@ -449,41 +450,38 @@ exports.permanentDeleteUserData = async (req, res) => {
       });
     }
 
-    // Build filters
-    const userIdFilter =
-      userIds.length > 0 ? { userId: { $in: userIds } } : null;
-    const user_idFilter =
-      userIds.length > 0 ? { user_id: { $in: userIds } } : null;
-    const phoneFilter = phones.length > 0 ? { phone: { $in: phones } } : null;
+    const userIdFilter = userIds.length ? { userId: { $in: userIds } } : {};
+    const user_idFilter = userIds.length ? { user_id: { $in: userIds } } : {};
+    const phoneFilter = phones.length ? { phone: { $in: phones } } : {};
 
-    // KYC filter: match phone, userId, or user_id
-    const kycFilter = {};
-    if (phoneFilter) kycFilter.phone = { $in: phones };
-    if (userIdFilter) kycFilter.userId = { $in: userIds };
-    if (user_idFilter) kycFilter.user_id = { $in: userIds };
+    const kycFilter = {
+      $or: [
+        ...(phones.length ? [{ phone: { $in: phones } }] : []),
+        ...(userIds.length ? [{ userId: { $in: userIds } }] : []),
+        ...(userIds.length ? [{ user_id: { $in: userIds } }] : []),
+      ],
+    };
 
-    // Array of delete operations for Promise.all
-    const deleteOperations = [
-      phoneFilter ? DrisModel.deleteMany(phoneFilter) : null,
-      userIdFilter ? fcmTokenModel.deleteMany(userIdFilter) : null,
-      userIdFilter ? NotificationModel.deleteMany(userIdFilter) : null,
-      userIdFilter ? paidSubscriptionModel.deleteMany(userIdFilter) : null,
-      userIdFilter ? subscriptionModel.deleteMany(userIdFilter) : null,
-      phoneFilter ? User.deleteMany(phoneFilter) : null,
-      user_idFilter ? userSavingsModel.deleteMany(user_idFilter) : null,
-    ].filter(Boolean); // Remove nulls if filter not present
-
-    const delelteKyc = await KYCmodel.deleteMany({ phone: phones });
-    // Run all deletions in parallel
-    const results = await Promise.all(deleteOperations);
+    // 💥 Promise.all: Run all deletions in parallel
+    const results = await Promise.all([
+      DrisModel.deleteMany(phoneFilter), // 1
+      fcmTokenModel.deleteMany(userIdFilter), // 2
+      KYCmodel.deleteMany(kycFilter), // 3
+      NotificationModel.deleteMany(userIdFilter), // 4
+      paidSubscriptionModel.deleteMany(userIdFilter), // 5
+      subscriptionModel.deleteMany(userIdFilter), // 6
+      User.deleteMany(phoneFilter), // 7
+      userSavingsModel.deleteMany(user_idFilter), // 8
+      advocateModel.updateMany(
+        // 9: remove userIds from assignUsers array
+        { assignUsers: { $in: userIds } },
+        { $pull: { assignUsers: { $in: userIds } } }
+      ),
+    ]);
 
     return res.status(200).json({
       success: true,
-      message: `User and related data permanently deleted`,
-      details: results.map((r, i) => ({
-        collectionIndex: i,
-        deletedCount: r.deletedCount,
-      })),
+      message: "User and related data deleted permanently",
     });
   } catch (err) {
     console.error("Permanent delete error:", err);
