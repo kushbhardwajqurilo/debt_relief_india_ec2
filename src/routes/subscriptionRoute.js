@@ -8,6 +8,7 @@ const {
   markSubscriptionAsPaid,
   getPaidSubscriptions,
   getSubscriptionToUser,
+  updateDueDates,
 } = require("../controllers/admin/monthlySubsciption");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
@@ -58,6 +59,8 @@ subscriptionRouter.post(
   roleAuthenticaton("admin"),
   markSubscriptionAsPaid
 );
+
+subscriptionRouter.patch("/update-date", AuthMiddleWare, updateDueDates);
 
 subscriptionRouter.get("/getPaidSubscriptions", getPaidSubscriptions);
 module.exports = subscriptionRouter;

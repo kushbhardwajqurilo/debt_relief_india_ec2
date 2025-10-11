@@ -5,6 +5,13 @@ const EmiModel = require("../models/EMIModel");
 const advocateModel = require("../models/advocateModel");
 const { default: mongoose } = require("mongoose");
 const User = require("../models/userModel");
+const fcmTokenModel = require("../models/fcmTokenModel");
+const NotificationModel = require("../models/NotificationModel");
+const {
+  paidSubscriptionModel,
+  subscriptionModel,
+} = require("../models/monthlySubscriptionModel");
+const userSavingsModel = require("../models/userSavingsModel");
 // exports.importUsersFromCSV = async (req, res) => {
 //   try {
 //     if (!req.file) return res.status(400).json({ message: "File required" });
@@ -429,3 +436,62 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
 };
 
 //
+exports.permanentDeleteUserData = async (req, res) => {
+  try {
+    const { userIds, phones } = req.body;
+    console.log(userIds, phones);
+    if (
+      (!Array.isArray(userIds) || userIds.length === 0) &&
+      (!Array.isArray(phones) || phones.length === 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "No userIds or phones provided",
+      });
+    }
+
+    // Build filters
+    const userIdFilter =
+      userIds.length > 0 ? { userId: { $in: userIds } } : null;
+    const user_idFilter =
+      userIds.length > 0 ? { user_id: { $in: userIds } } : null;
+    const phoneFilter = phones.length > 0 ? { phone: { $in: phones } } : null;
+
+    // KYC filter: match phone, userId, or user_id
+    const kycFilter = {};
+    if (phoneFilter) kycFilter.phone = { $in: phones };
+    if (userIdFilter) kycFilter.userId = { $in: userIds };
+    if (user_idFilter) kycFilter.user_id = { $in: userIds };
+
+    // Array of delete operations for Promise.all
+    const deleteOperations = [
+      phoneFilter ? DrisModel.deleteMany(phoneFilter) : null,
+      userIdFilter ? fcmTokenModel.deleteMany(userIdFilter) : null,
+      KYCmodel.deleteMany(kycFilter),
+      userIdFilter ? NotificationModel.deleteMany(userIdFilter) : null,
+      userIdFilter ? paidSubscriptionModel.deleteMany(userIdFilter) : null,
+      userIdFilter ? subscriptionModel.deleteMany(userIdFilter) : null,
+      phoneFilter ? User.deleteMany(phoneFilter) : null,
+      user_idFilter ? userSavingsModel.deleteMany(user_idFilter) : null,
+    ].filter(Boolean); // Remove nulls if filter not present
+
+    // Run all deletions in parallel
+    const results = await Promise.all(deleteOperations);
+
+    return res.status(200).json({
+      success: true,
+      message: `User and related data permanently deleted`,
+      details: results.map((r, i) => ({
+        collectionIndex: i,
+        deletedCount: r.deletedCount,
+      })),
+    });
+  } catch (err) {
+    console.error("Permanent delete error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+      reason: err?.writeErrors?.[0]?.errmsg || "Something went wrong.",
+    });
+  }
+};

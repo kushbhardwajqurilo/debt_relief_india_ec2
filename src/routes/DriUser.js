@@ -7,6 +7,7 @@ const {
   getSettementAdvance,
   multipleSoftDelete,
   updateDriUserPhoneId,
+  permanentDeleteUserData,
 } = require("../controllers/DriUser");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
@@ -31,5 +32,11 @@ driRoute.put(
   AuthMiddleWare,
   roleAuthenticaton("admin"),
   updateDriUserPhoneId
+);
+driRoute.delete(
+  "/permanent-delete",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  permanentDeleteUserData
 );
 module.exports = driRoute;

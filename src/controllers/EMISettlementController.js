@@ -168,24 +168,10 @@ exports.marksAsPaid = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
 
-    if (user.emiPay === 0)
-      return res
-        .status(400)
-        .json({ success: false, message: "Cannot mark paid. EMI is 0" });
     if (user.status === "paid")
       return res
         .status(200)
         .json({ success: false, message: "Currently no EMI pending" });
-    if (user.invoiceInsert === false)
-      return res
-        .status(200)
-        .json({
-          success: false,
-          message: "EMI invoice pending or not available.",
-        });
-
-    user.invoiceInsert = false;
-
     // 🔹 Helpers for date
     const parseDDMMYYYY = (dateStr) => {
       const [day, month, year] = dateStr.split("-").map(Number);
@@ -216,6 +202,7 @@ exports.marksAsPaid = async (req, res) => {
     const currentDate = parseDDMMYYYY(user.dueDate);
     const newDueDate = addMonth(currentDate, 1);
     user.dueDate = formatDDMMYYYY(newDueDate);
+    user.emiPay = user.emiPay + 1;
 
     // 🔹 PaidService date in DD/MM/YYYY string (same as frontend)
     const payload = {
@@ -439,7 +426,7 @@ exports.createTestEmi = async (req, res) => {
     if (token.status === true && token.userId) {
       const message = `Dear ${user.name}, your EMI has been issued. Debt Relief India will send you Monthly Invoice.`;
       await sendNotificationToSingleUser(
-        token,
+        token.token,
         message,
         "Debt Relief India",
         "emi"
@@ -636,7 +623,7 @@ exports.BultEmiInsert = async (req, res) => {
             const message = `Dear ${userData.name}, Your Settlements has been issued!`;
             console.log("message", message);
             await sendNotificationToSingleUser(
-              token,
+              token.token,
               message,
               "Debt Relief India",
               "emi"
@@ -692,36 +679,33 @@ exports.BultEmiInsert = async (req, res) => {
 
 exports.outstandingController = async (req, res) => {
   try {
-    const validation = {
-      finaloutamount: "",
-      finalsettelement: "",
-      finalpercentage: "",
-      finalsaving: "",
-      phone: "",
-      loanId: "",
-    };
+    const requiredFields = [
+      "finaloutamount",
+      "finalsettelement",
+      "finalpercentage",
+      "finalsaving",
+      "phone",
+      "loanId",
+    ];
 
-    const {
-      finaloutamount,
-      finalsaving,
-      finalsettelement,
-      finalpercentage,
-      phone,
-      loanId,
-    } = req.body;
-
-    // Validation
-    for (let val of Object.keys(validation)) {
-      if (!req.body[val] || req.body[val].toString().trim().length === 0) {
+    for (let field of requiredFields) {
+      if (!req.body[field] || req.body[field].toString().trim() === "") {
         return res
           .status(400)
-          .json({ success: false, message: `${val} is required` });
+          .json({ success: false, message: `${field} is required` });
       }
     }
 
+    const {
+      finaloutamount,
+      finalsettelement,
+      finalpercentage,
+      finalsaving,
+      phone,
+      loanId,
+    } = req.body;
     const loanObjId = new mongoose.Types.ObjectId(loanId);
 
-    // Prepare new outstanding data
     const newOutstanding = {
       finalOutstandingAmount: parseInt(finaloutamount),
       finalSettelement: parseInt(finalsettelement),
@@ -729,57 +713,62 @@ exports.outstandingController = async (req, res) => {
       finalSavings: parseInt(finalsaving),
     };
 
-    // Find user
     const driUser = await DrisModel.findOne({ phone });
-    if (driUser) {
-      driUser.credit_Cards?.forEach((val) => {
-        if (val._id.equals(loanObjId)) {
-          if (val.isOutstanding === true) {
-            val.isOutstanding = false;
-            Object.assign(val, newOutstanding);
-            return res.status(200).json({
-              success: true,
-              message: "Service Closed",
-            });
-          } else {
-            return res.status(400).json({
-              success: false,
-              message: "this service already outstanded",
-            });
-          }
-        }
-      });
-
-      driUser.personal_Loans?.forEach((val) => {
-        if (val._id.equals(loanObjId)) {
-          if (val.isOutstanding === true) {
-            val.isOutstanding = false;
-            Object.assign(val, newOutstanding);
-            return res.status(200).json({
-              success: true,
-              message: "Service Closed",
-            });
-          } else {
-            return res.status(400).json({
-              success: false,
-              message: "this service already outstanded",
-            });
-          }
-        }
-      });
-
-      //  Ensure subdocs are marked as modified
-      driUser.markModified("credit_Cards");
-      driUser.markModified("personal_Loans");
-
-      await driUser.save();
+    if (!driUser) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
-    return res
-      .status(201)
-      .json({ success: true, message: "Outstanding successfully updated" });
+    // ✅ Handle credit cards
+    for (const val of driUser.credit_Cards || []) {
+      if (val._id.equals(loanObjId)) {
+        if (val.isOutstanding) {
+          val.isOutstanding = false;
+          Object.assign(val, newOutstanding);
+          driUser.markModified("credit_Cards");
+          await driUser.save();
+          return res.status(200).json({
+            success: true,
+            message: "Service Closed (credit card)",
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "This service is already outstanded",
+          });
+        }
+      }
+    }
+
+    // ✅ Handle personal loans
+    for (const val of driUser.personal_Loans || []) {
+      if (val._id.equals(loanObjId)) {
+        if (val.isOutstanding) {
+          val.isOutstanding = false;
+          Object.assign(val, newOutstanding);
+          driUser.markModified("personal_Loans");
+          await driUser.save();
+          return res.status(200).json({
+            success: true,
+            message: "Service Closed (personal loan)",
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "This service is already outstanded",
+          });
+        }
+      }
+    }
+
+    // If no matching loan found
+    return res.status(404).json({
+      success: false,
+      message: "No matching loan found",
+    });
   } catch (error) {
-    console.log("error", error);
+    console.error("error", error);
     return res
       .status(500)
       .json({ success: false, message: error.message, error });
@@ -812,7 +801,6 @@ exports.outstandingController = async (req, res) => {
 exports.getPaidSerivcesToEachUser = async (req, res) => {
   try {
     const { user_id } = req.params;
-    console.log("idss", user_id);
     if (!user_id) {
       return res.status(400).json({
         success: false,
@@ -820,12 +808,115 @@ exports.getPaidSerivcesToEachUser = async (req, res) => {
       });
     }
     const service = await PaidService.find({ userId: user_id });
-    console.log(service);
     if (!service || service.length === 0) {
       return res.status(400).json({ success: false, message: "failed fetch" });
     }
     return res.status(200).json({ success: true, data: service });
   } catch (error) {
     return res.status(500).json({ success: false, message: error });
+  }
+};
+
+// update due date
+exports.updateServiceDueDates = async (req, res, next) => {
+  try {
+    const { date, phone } = req.body;
+    console.log({ date, phone });
+
+    if (!date || !phone) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Credentials missing" });
+    }
+
+    const getDates = await DrisModel.findOne({ phone });
+
+    if (!getDates || !getDates.dueDate) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No due date found for this phone" });
+    }
+
+    // Ensure day is always 2 digits
+    const day = date.toString().padStart(2, "0");
+
+    // Replace the day in the existing dueDate string
+    const updatedDate = day + getDates.dueDate.slice(2); // keep "-MM-YYYY"
+    console.log("d", updatedDate);
+    getDates.dueDate = updatedDate;
+    await getDates.save();
+    // Optionally, update in DB
+    // await DrisModel.updateOne({ phone }, { dueDate: updatedDate });
+
+    return res.json({ success: true, message: "Date Update" });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message, error });
+  }
+};
+
+// add single loan to user
+
+exports.addSingleLoanToClient = async (req, res, next) => {
+  try {
+    const validation = {
+      loanType: "",
+      bank: "",
+      amount: "",
+      settlmentPercentage: "",
+      phone: "",
+      total: "",
+    };
+    Object.keys(validation).forEach((key) => {
+      if (!req.body[key] || req.body[key].toString().trim().length === 0) {
+        return res
+          .status(400)
+          .json({ success: false, message: `${key} missing` });
+      }
+    });
+    const amount = parseFloat(req.body.amount || 0); // 7,40,000
+    const settlementPercent = parseFloat(req.body.settlmentPercentage || 0); //40%
+    const estimatedSettlement = (amount * settlementPercent) / 100; // 2,96,000
+    const estimatedSaving = amount - estimatedSettlement;
+    const bank = req.body.bank;
+    const total = req.body.total;
+    const loanType = req.body.loanType;
+    const payload = {
+      bank,
+      amount,
+      settlement: settlementPercent,
+      total,
+      estimatedSettlement,
+      saving: estimatedSaving,
+      finalOutstandingAmount: "",
+      finalSettelement: "",
+      finalPercentage: "",
+      finalSavings: "",
+      isOutstanding: true,
+    };
+    const user = await DrisModel.findOne({ phone: req.body.phone });
+    if (!user || user.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User Not Found" });
+    }
+    if (loanType === "Personal_Loan") {
+      user.personal_Loans.push(payload);
+    }
+    if (loanType === "Credit_Loan") {
+      user.credit_Cards.push(payload);
+    }
+    await user.save();
+    return res
+      .status(200)
+      .json({ success: true, message: "New loan record created." });
+  } catch (error) {
+    console.log("er", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      error,
+    });
   }
 };

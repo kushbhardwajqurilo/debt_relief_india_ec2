@@ -143,6 +143,7 @@ exports.getSubscriptionToUser = async (req, res, next) => {
         .status(400)
         .json({ message: "You don’t have an subscription" });
     }
+    console.log("sibsc", subsc);
     return res.status(200).json({
       success: true,
       data: subscription,
@@ -383,8 +384,43 @@ exports.getPaidSubscriptions = async (req, res) => {
   }
 };
 
-// data [
-//   {
+// chage due date
+exports.updateDueDates = async (req, res, next) => {
+  try {
+    const { date, user_id } = req.body;
+    if (!date) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Date is required" });
+    }
 
-//   }
-// ]
+    const getSubscriptinDate = await subscriptionModel.findOne({
+      userId: user_id,
+    });
+
+    if (!getSubscriptinDate) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Subscription not found" });
+    }
+
+    const d = new Date(getSubscriptinDate.dueDate);
+    d.setDate(date); // change only the day
+    const updateDate = d.toISOString();
+
+    // optional: save back to DB
+    await subscriptionModel.updateOne(
+      { userId: user_id },
+      { $set: { dueDate: updateDate } }
+    );
+
+    return res.json({
+      success: true,
+      message: "Date Update",
+    });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message, error });
+  }
+};

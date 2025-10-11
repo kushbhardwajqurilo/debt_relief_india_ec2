@@ -1,7 +1,6 @@
 const fcmTokenModel = require("../models/fcmTokenModel");
 const userModel = require("../models/userModel");
 exports.getSingleUserToken = async (phone) => {
-  console.log("token phone", phone);
   if (!phone) {
     return { status: false };
   }
@@ -13,6 +12,5 @@ exports.getSingleUserToken = async (phone) => {
   if (!token) {
     return { sucess: false };
   }
-  console.log("user token ", token);
   return { token: token.token, userId: user._id, status: true };
 };
