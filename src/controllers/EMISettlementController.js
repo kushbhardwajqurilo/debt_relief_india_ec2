@@ -167,21 +167,30 @@ exports.marksAsPaid = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
-
+    if (!user.dueDate || user.dueDate.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No DueDate Found" });
+    }
     if (user.status === "paid")
       return res
         .status(200)
         .json({ success: false, message: "Currently no EMI pending" });
     // 🔹 Helpers for date
     const parseDDMMYYYY = (dateStr) => {
-      const [day, month, year] = dateStr.split("-").map(Number);
+      const [day, month, year] = dateStr?.split("-").map(Number);
       return new Date(year, month - 1, day);
     };
 
     const formatDDMMYYYY = (date) => {
-      return `${String(date.getDate()).padStart(2, "0")}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}-${date.getFullYear()}`;
+      console.log("date", date);
+      if (date) {
+        return `${String(date.getDate()).padStart(2, "0")}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${date.getFullYear()}`;
+      } else {
+        return res.status(400).json({ success: false, message: "date issue" });
+      }
     };
 
     const formatDDMMYYYY_slash = (date) => {
@@ -199,6 +208,7 @@ exports.marksAsPaid = async (req, res) => {
     };
 
     // 🔹 Increment dueDate in DrisModel (DD-MM-YYYY)
+
     const currentDate = parseDDMMYYYY(user.dueDate);
     const newDueDate = addMonth(currentDate, 1);
     user.dueDate = formatDDMMYYYY(newDueDate);
