@@ -172,10 +172,16 @@ exports.marksAsPaid = async (req, res) => {
         .status(400)
         .json({ success: false, message: "No DueDate Found" });
     }
-    if (user.status === "paid")
+    if (user.status === "Closed")
       return res
         .status(200)
-        .json({ success: false, message: "Currently no EMI pending" });
+        .json({ success: false, message: "User Service Already Closed..." });
+
+    if (user.totalEmi == user.emiPay) {
+      user.status = "Close";
+      await user.save();
+      return res.status(400).json({ suceess: false, message: "All EMI Paid" });
+    }
     // 🔹 Helpers for date
     const parseDDMMYYYY = (dateStr) => {
       const [day, month, year] = dateStr?.split("-").map(Number);
@@ -183,7 +189,6 @@ exports.marksAsPaid = async (req, res) => {
     };
 
     const formatDDMMYYYY = (date) => {
-      console.log("date", date);
       if (date) {
         return `${String(date.getDate()).padStart(2, "0")}-${String(
           date.getMonth() + 1
@@ -430,21 +435,21 @@ exports.createTestEmi = async (req, res) => {
       user = new DrisModel({ ...userData, status });
       await user.save();
     }
-
+    const message = await customeNoticationModel.find({});
+    const emiMsg = message[0]?.Emi_Notification;
     // Notification
     const token = await getSingleUserToken(phone);
     if (token.status === true && token.userId) {
-      const message = `Dear ${user.name}, your EMI has been issued. Debt Relief India will send you Monthly Invoice.`;
       await sendNotificationToSingleUser(
         token.token,
-        message,
+        emiMsg,
         "Debt Relief India",
         "emi"
       );
       await createNotification(
         token.userId,
         "Debt Relief India",
-        message,
+        emiMsg,
         "emi"
       );
     }
@@ -624,27 +629,25 @@ exports.BultEmiInsert = async (req, res) => {
       });
 
       // ✅ Fetch notification template safely
-
+      const message = await customeNoticationModel.find({});
+      const emiMsg = message[0]?.Emi_Notification;
       // ✅ Prepare notification task
       notificationTasks.push(async () => {
         try {
           const token = await getSingleUserToken(client.phone);
           if (token.status === true && token.userId) {
-            const message = `Dear ${userData.name}, Your Settlements has been issued!`;
-            console.log("message", message);
             await sendNotificationToSingleUser(
               token.token,
-              message,
+              emiMsg,
               "Debt Relief India",
               "emi"
             );
             await createNotification(
               token.userId,
               "Debt Relief India",
-              message,
+              emiMsg,
               "emi"
             );
-            console.log("✅ Notification sent to", client.phone);
           } else {
             console.log("⚠️ No valid token for", client.phone);
           }

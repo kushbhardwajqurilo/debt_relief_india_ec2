@@ -164,6 +164,7 @@ exports.customeNotification = async (req, res) => {
       updateFields["invoice"] = message;
     } else if (type === "reminder")
       updateFields["reminder_notification"] = message;
+    else if (type === "emi") updateFields["Emi_Notification"] = message;
     else {
       return res
         .status(400)

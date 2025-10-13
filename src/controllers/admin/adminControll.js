@@ -11,6 +11,7 @@ const { json } = require("stream/consumers");
 const {
   contatYourAdvocateModel,
 } = require("../../models/contactYourAdvocateModel");
+const padiDialBoxModel = require("../../models/paidDialogBoxModel");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -698,6 +699,65 @@ exports.getYourContactCall = async (req, res, next) => {
       success: false,
       message: error.message,
       error,
+    });
+  }
+};
+
+// set dialbox content
+exports.addDialBoxContent = async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        message: "Content is required",
+      });
+    }
+
+    // Check if a document already exists
+    const existing = await padiDialBoxModel.findOne();
+
+    if (existing) {
+      // Update existing document
+      existing.content = content;
+      await existing.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Content updated successfully",
+        data: existing,
+      });
+    }
+
+    // No document found → create a new one
+    const newContent = await padiDialBoxModel.create({ content });
+
+    return res.status(201).json({
+      success: true,
+      message: "Content added successfully",
+      data: newContent,
+    });
+  } catch (error) {
+    console.error("Error in addDialBoxContent:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+};
+
+// get dialog box to all users
+exports.getDialogBoxToAll = async (req, res) => {
+  try {
+    const content = await padiDialBoxModel.findOne({});
+    return res.status(200).json({ success: false, data: content });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      message: error.message,
     });
   }
 };

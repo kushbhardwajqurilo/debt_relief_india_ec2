@@ -15,6 +15,8 @@ const {
   changePasswprd,
   callNowSetup,
   getYourContactCall,
+  addDialBoxContent,
+  getDialogBoxToAll,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -85,4 +87,12 @@ adminRouter.post(
   UploadSingleImage.single("image"),
   addLoginBackground
 );
+
+adminRouter.post(
+  "/add-content",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  addDialBoxContent
+);
+adminRouter.get("/get-content", getDialogBoxToAll);
 module.exports = adminRouter;

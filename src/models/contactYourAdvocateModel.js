@@ -15,6 +15,10 @@ const customeNotificatin = mongoose.Schema({
   reminder_notification: {
     type: String,
   },
+  Emi_Notification: {
+    type: String,
+    required: true,
+  },
 });
 
 const conctYourAdvocateSchema = mongoose.Schema({
