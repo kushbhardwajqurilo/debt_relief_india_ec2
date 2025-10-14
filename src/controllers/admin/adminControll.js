@@ -12,6 +12,8 @@ const {
   contatYourAdvocateModel,
 } = require("../../models/contactYourAdvocateModel");
 const padiDialBoxModel = require("../../models/paidDialogBoxModel");
+const User = require("../../models/userModel");
+const { default: mongoose } = require("mongoose");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -466,7 +468,7 @@ exports.getBarcodeAndUpi = async (req, res, next) => {
 exports.addLoginBackground = async (req, res, next) => {
   try {
     const { admin_id } = req;
-    console.log("admin", admin_id);
+
     const file = req.file;
     if (!admin_id) {
       return res.status(400).json({
@@ -657,7 +659,7 @@ exports.getUserLoginBanner = async (req, res) => {
 exports.callNowSetup = async (req, res) => {
   try {
     const { message } = req.body;
-    console.log("message", message);
+
     if (!message || message.length === 0) {
       return res.status(400).json({
         success: false,
@@ -715,28 +717,35 @@ exports.addDialBoxContent = async (req, res) => {
       });
     }
 
-    // Check if a document already exists
-    const existing = await padiDialBoxModel.findOne();
-
-    if (existing) {
-      // Update existing document
-      existing.content = content;
-      await existing.save();
-
-      return res.status(200).json({
-        success: true,
-        message: "Content updated successfully",
-        data: existing,
+    // Get all users
+    const users = await User.find({});
+    if (!users.length) {
+      return res.status(404).json({
+        success: false,
+        message: "No users found",
       });
     }
 
-    // No document found → create a new one
-    const newContent = await padiDialBoxModel.create({ content });
+    // Update or insert for each user
+    const operations = users.map((user) =>
+      padiDialBoxModel.updateOne(
+        { user_id: user._id }, // find by user_id
+        {
+          $set: {
+            phone: user.phone,
+            alternatePhone: user.alternatePhone || "",
+            content: content,
+          },
+        },
+        { upsert: true } // create if not found
+      )
+    );
 
-    return res.status(201).json({
+    await Promise.all(operations);
+
+    return res.status(200).json({
       success: true,
-      message: "Content added successfully",
-      data: newContent,
+      message: "Content updated successfully",
     });
   } catch (error) {
     console.error("Error in addDialBoxContent:", error);
@@ -751,8 +760,53 @@ exports.addDialBoxContent = async (req, res) => {
 // get dialog box to all users
 exports.getDialogBoxToAll = async (req, res) => {
   try {
-    const content = await padiDialBoxModel.findOne({});
-    return res.status(200).json({ success: false, data: content });
+    const { user_id } = req;
+    const { phone } = req.body;
+    console.log({ user_id, phone });
+    if (!user_id || !phone) {
+      return res
+        .status(400)
+        .json({ success: false, message: "user crediential invalid" });
+    }
+    const query = {
+      $or: [
+        { user_id: new mongoose.Types.ObjectId(user_id) },
+        { phone: `${phone}` },
+        { alternatePhone: `${phone}` },
+      ],
+    };
+    const content = await padiDialBoxModel
+      .findOne(query)
+      .select("-_id -user_id -alternatePhone -phone -__v");
+    if (!content) {
+      return res
+        .status(400)
+        .json({ success: false, message: "failed to fetch" });
+    }
+    return res.status(200).json({ success: true, data: content });
+  } catch (error) {
+    console.log("err", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      message: error.message,
+    });
+  }
+};
+
+// to admin
+exports.getDialogBoxToAdmin = async (req, res) => {
+  try {
+    console.log("res", req.admin_id);
+    const content = await padiDialBoxModel
+      .findOne({})
+      .select("-_id -user_id -alternatePhone -phone -__v");
+    if (!content) {
+      return res
+        .status(400)
+        .json({ success: false, message: "failed to fetch" });
+    }
+    return res.status(200).json({ success: true, data: content });
   } catch (error) {
     return res.status(500).json({
       success: false,

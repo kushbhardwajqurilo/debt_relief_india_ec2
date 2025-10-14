@@ -20,6 +20,7 @@ const {
 
 const { paidSubscriptionModel } = require("../models/monthlySubscriptionModel");
 const PaidService = require("../models/paidServicesModel");
+const padiDialBoxModel = require("../models/paidDialogBoxModel");
 
 exports.EMIPayment = async (req, res, next) => {
   try {
@@ -89,7 +90,6 @@ exports.ManualEmiUpload = async (req, res, next) => {
     };
     const { phone, emiAmount, emiType, noOfEmi, dueDate, settlementAount } =
       req.body;
-    console.log("body", req.body);
     for (let val of Object.keys(validation)) {
       if (
         req.body[val] === undefined ||
@@ -172,6 +172,7 @@ exports.marksAsPaid = async (req, res) => {
         .status(400)
         .json({ success: false, message: "No DueDate Found" });
     }
+
     if (user.status === "Closed")
       return res
         .status(200)
@@ -235,6 +236,21 @@ exports.marksAsPaid = async (req, res) => {
         .json({ success: false, message: "Mark Paid Failed" });
 
     await user.save();
+
+    if (user.totalEmi === user.emiPay) {
+      user.status = "closed";
+      const query = {
+        $or: [
+          { user_id: new mongoose.Types.ObjectId(user_id) },
+          { phone: `${phone}` },
+          { alternatePhone: `${phone}` },
+        ],
+      };
+      const paidModal = await padiDialBoxModel.findOne(query);
+      paidModal.status = true;
+      await paidModal.save();
+      await user.save();
+    }
 
     return res.status(200).json({
       success: true,
@@ -667,7 +683,7 @@ exports.BultEmiInsert = async (req, res) => {
     }
 
     // ✅ Execute notifications in small batches
-    console.log("📤 Total notifications to send:", notificationTasks.length);
+    // console.log("📤 Total notifications to send:", notificationTasks.length);
     for (let i = 0; i < notificationTasks.length; i += 10) {
       const batch = notificationTasks.slice(i, i + 10);
       await Promise.all(batch.map((task) => task()));
@@ -834,7 +850,7 @@ exports.getPaidSerivcesToEachUser = async (req, res) => {
 exports.updateServiceDueDates = async (req, res, next) => {
   try {
     const { date, phone } = req.body;
-    console.log({ date, phone });
+    // console.log({ date, phone });
 
     if (!date || !phone) {
       return res
@@ -855,7 +871,6 @@ exports.updateServiceDueDates = async (req, res, next) => {
 
     // Replace the day in the existing dueDate string
     const updatedDate = day + getDates.dueDate.slice(2); // keep "-MM-YYYY"
-    console.log("d", updatedDate);
     getDates.dueDate = updatedDate;
     await getDates.save();
     // Optionally, update in DB
@@ -925,7 +940,6 @@ exports.addSingleLoanToClient = async (req, res, next) => {
       .status(200)
       .json({ success: true, message: "New loan record created." });
   } catch (error) {
-    console.log("er", error);
     return res.status(500).json({
       success: false,
       message: error.message,

@@ -17,6 +17,7 @@ const {
   getYourContactCall,
   addDialBoxContent,
   getDialogBoxToAll,
+  getDialogBoxToAdmin,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -27,6 +28,7 @@ const {
 const limiter = require("../middlewares/rateLimitMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 const UploadSingleImage = require("../middlewares/singleImageUpload");
+const { UserAuthMiddleWare } = require("../middlewares/userMiddleware");
 
 const adminRouter = require("express").Router();
 adminRouter.post("/", createAdmin);
@@ -94,5 +96,17 @@ adminRouter.post(
   roleAuthenticaton("admin"),
   addDialBoxContent
 );
-adminRouter.get("/get-content", getDialogBoxToAll);
+adminRouter.get(
+  "/get-content",
+  UserAuthMiddleWare,
+  roleAuthenticaton("user"),
+  getDialogBoxToAll
+);
+adminRouter.get(
+  "/get-content-admin",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  getDialogBoxToAdmin
+);
+
 module.exports = adminRouter;
