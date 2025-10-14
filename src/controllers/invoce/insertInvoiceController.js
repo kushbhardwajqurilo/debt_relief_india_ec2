@@ -87,7 +87,12 @@ exports.uploadInvoice = async (req, res, next) => {
         .status(400)
         .json({ success: false, message: "User hasn't any EMIs" });
     }
-
+    if (haveEmi.status == "closed") {
+      return res.status(500).json({
+        success: false,
+        message: "All EMIs are already settled for this user.",
+      });
+    }
     const file = req.file;
     if (!file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -173,6 +178,7 @@ exports.uploadInvoice = async (req, res, next) => {
     }
 
     const user = await UserModel.findOne({ phone });
+
     const expo_token = await fcmTokenModel.findOne({ userId: user._id });
 
     // Upload to S3
