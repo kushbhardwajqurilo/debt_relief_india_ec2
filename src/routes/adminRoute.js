@@ -96,7 +96,7 @@ adminRouter.post(
   roleAuthenticaton("admin"),
   addDialBoxContent
 );
-adminRouter.get(
+adminRouter.post(
   "/get-content",
   UserAuthMiddleWare,
   roleAuthenticaton("user"),
