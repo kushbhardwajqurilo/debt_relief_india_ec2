@@ -12,139 +12,6 @@ const {
   subscriptionModel,
 } = require("../models/monthlySubscriptionModel");
 const userSavingsModel = require("../models/userSavingsModel");
-// exports.importUsersFromCSV = async (req, res) => {
-//   try {
-//     if (!req.file) return res.status(400).json({ message: "File required" });
-
-//     // CSV read
-//     const result = await csv().fromFile(req.file.path);
-
-//     // CSV se users banaye
-//     const data = result.map((row) => ({
-//       name: row.name,
-//       email: row.email,
-//       gender: row.gender,
-//       id: row.id,
-//       phone: row.phone,
-//       status: "N/A",
-//     }));
-
-//     // Sare phone numbers nikaale
-//     const phones = data.map((u) => u.phone);
-
-//     // DB me already existing phone numbers check karo
-//     const existingUsers = await DrisModel.find(
-//       { phone: { $in: phones } },
-//       { phone: 1 }
-//     );
-//     const existingPhones = existingUsers.map((u) => u.phone);
-
-//     // Filter karo sirf naye users ke liye
-//     const newUsers = data.filter((u) => !existingPhones.includes(u.phone));
-
-//     if (newUsers.length === 0) {
-//       return res.status(200).json({
-//         success: false,
-//         message: "No new users to insert (all phone numbers already exist)",
-//       });
-//     }
-
-//     // Insert karo only new users
-//     const uplodUserData = await DrisModel.insertMany(newUsers, {
-//       ordered: true,
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Users inserted",
-//     });
-//   } catch (err) {
-//     console.error("Insertion error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: err.message,
-//       reason: err?.writeErrors?.[0]?.errmsg || "Unknown error",
-//     });
-//   }
-// };
-
-// exports.importUsersFromCSV = async (req, res) => {
-//   try {
-//     if (!req.file) return res.status(400).json({ message: "File required" });
-//     // CSV read
-//     const result = await csv().fromFile(req.file.path);
-
-//     // CSV se users banaye
-//     const data = result.map((row) => ({
-//       name: row.ClientName,
-//       email: row.ClientEmail,
-//       gender: row.Gender,
-//       id: row.id,
-//       phone: row.Phone,
-//       id: row.UserId,
-//       existingUser: true,
-//       status: "N/A",
-//     }));
-
-//     // Sare phone numbers nikaale
-//     const phones = data.map((u) => u.phone);
-
-//     // ----------------------------
-//     // Step 1: Pehle UserModel me check karo
-//     // ----------------------------
-//     const existingUserPhones = await User.find(
-//       { phone: { $in: phones } },
-//       { phone: 1 }
-//     );
-//     const existingUserPhoneList = existingUserPhones.map((u) => u.phone);
-
-//     // jo phones UserModel me nahi hai unko insert kar do
-//     const newUserPhones = phones.filter(
-//       (p) => !existingUserPhoneList.includes(p)
-//     );
-//     if (newUserPhones.length > 0) {
-//       const phoneDocs = newUserPhones.map((p) => ({
-//         phone: p,
-//         existingUser: true,
-//       }));
-//       await User.insertMany(phoneDocs, { ordered: true });
-//     }
-
-//     // ----------------------------
-//     // Step 2: Ab DrisModel ke liye process
-//     // ----------------------------
-//     const existingDrisUsers = await DrisModel.find(
-//       { phone: { $in: phones } },
-//       { phone: 1 }
-//     );
-//     const existingDrisPhones = existingDrisUsers.map((u) => u.phone);
-
-//     // Filter karo sirf naye users ke liye
-//     const newUsers = data.filter((u) => !existingDrisPhones.includes(u.phone));
-
-//     if (newUsers.length === 0) {
-//       return res.status(200).json({
-//         success: false,
-//         message: "No new users to insert (all phone numbers already exist)",
-//       });
-//     }
-
-//     // Insert karo only new users
-//     await DrisModel.insertMany(newUsers, { ordered: true });
-
-//     return res.status(200).json({
-//       success: true,
-//       message: "Users inserted",
-//     });
-//   } catch (err) {
-//     console.error("Insertion error:", err);
-//     return res.status(500).json({
-//       success: false,
-//       message: err.message,
-//       reason: err?.writeErrors?.[0]?.errmsg || "Unknown error",
-//     });
-//   }
-// };
 exports.importUsersFromCSV = async (req, res) => {
   try {
     if (!req.file) {
@@ -221,7 +88,7 @@ exports.importUsersFromCSV = async (req, res) => {
 
     // Step 10: Insert new records
     await DrisModel.insertMany(drisToInsert, { ordered: true });
-
+    console.log("dud", drisToInsert);
     return res.status(200).json({
       success: true,
       message: "Users inserted successfully with id and userId",
