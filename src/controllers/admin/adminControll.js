@@ -14,6 +14,7 @@ const {
 const padiDialBoxModel = require("../../models/paidDialogBoxModel");
 const User = require("../../models/userModel");
 const { default: mongoose } = require("mongoose");
+const backupDatabase = require("../back/db/backup");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -813,5 +814,32 @@ exports.getDialogBoxToAdmin = async (req, res) => {
       message: "Internal Server Error",
       message: error.message,
     });
+  }
+};
+
+// backup code
+
+exports.dataBackup = async (req, res) => {
+  try {
+    const { admin_id } = req;
+    if (!admin_id || admin_id.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "User credentials required",
+      });
+    }
+    if (!new mongoose.Types.ObjectId(admin_id)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid User Credentials" });
+    }
+    const result = await backupDatabase(
+      process.env.DB_URL,
+      process.env.BackupDB
+    );
+    return res.status(200).json({ success: true, result });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error.err, error });
   }
 };

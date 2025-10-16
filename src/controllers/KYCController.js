@@ -244,6 +244,7 @@ exports.ApproveByAdmin = async (req, res) => {
       phone: updateKYC.phone,
       id: assign_id,
       status: "N/A",
+      userId: updateKYC.user_id,
     };
     const existingDRiUser = await DrisModel.findOne({
       phone: driPayload.phone,

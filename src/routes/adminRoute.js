@@ -18,6 +18,7 @@ const {
   addDialBoxContent,
   getDialogBoxToAll,
   getDialogBoxToAdmin,
+  dataBackup,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -109,4 +110,9 @@ adminRouter.get(
   getDialogBoxToAdmin
 );
 
+adminRouter.post(
+  "/backup",
+  [AuthMiddleWare, roleAuthenticaton("admin")],
+  dataBackup
+);
 module.exports = adminRouter;

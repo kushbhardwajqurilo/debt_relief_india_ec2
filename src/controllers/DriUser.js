@@ -3,7 +3,7 @@ const DrisModel = require("../models/DriUserModel");
 const KYCmodel = require("../models/KYCModel");
 const EmiModel = require("../models/EMIModel");
 const advocateModel = require("../models/advocateModel");
-const { default: mongoose } = require("mongoose");
+const { default: mongoose, set } = require("mongoose");
 const User = require("../models/userModel");
 const fcmTokenModel = require("../models/fcmTokenModel");
 const NotificationModel = require("../models/NotificationModel");
@@ -379,6 +379,13 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
       { $set: { id, phone } },
       { upsert: true, new: true }
     );
+    const setAdvocate = await advocateModel.findOne({
+      _id: new mongoose.Types.ObjectId(req.body.advocate),
+    });
+    if (setAdvocate) {
+      setAdvocate.assignUsers.push(driuser.userId);
+      await setAdvocate.save();
+    }
     if (driuser?.modifiedCount === 0) {
       return res
         .status(400)
