@@ -68,54 +68,141 @@ const userSavingsModel = require("../models/userSavingsModel");
 //   }
 // };
 
+// exports.importUsersFromCSV = async (req, res) => {
+//   try {
+//     if (!req.file) return res.status(400).json({ message: "File required" });
+//     // CSV read
+//     const result = await csv().fromFile(req.file.path);
+
+//     // CSV se users banaye
+//     const data = result.map((row) => ({
+//       name: row.ClientName,
+//       email: row.ClientEmail,
+//       gender: row.Gender,
+//       id: row.id,
+//       phone: row.Phone,
+//       id: row.UserId,
+//       existingUser: true,
+//       status: "N/A",
+//     }));
+
+//     // Sare phone numbers nikaale
+//     const phones = data.map((u) => u.phone);
+
+//     // ----------------------------
+//     // Step 1: Pehle UserModel me check karo
+//     // ----------------------------
+//     const existingUserPhones = await User.find(
+//       { phone: { $in: phones } },
+//       { phone: 1 }
+//     );
+//     const existingUserPhoneList = existingUserPhones.map((u) => u.phone);
+
+//     // jo phones UserModel me nahi hai unko insert kar do
+//     const newUserPhones = phones.filter(
+//       (p) => !existingUserPhoneList.includes(p)
+//     );
+//     if (newUserPhones.length > 0) {
+//       const phoneDocs = newUserPhones.map((p) => ({
+//         phone: p,
+//         existingUser: true,
+//       }));
+//       await User.insertMany(phoneDocs, { ordered: true });
+//     }
+
+//     // ----------------------------
+//     // Step 2: Ab DrisModel ke liye process
+//     // ----------------------------
+//     const existingDrisUsers = await DrisModel.find(
+//       { phone: { $in: phones } },
+//       { phone: 1 }
+//     );
+//     const existingDrisPhones = existingDrisUsers.map((u) => u.phone);
+
+//     // Filter karo sirf naye users ke liye
+//     const newUsers = data.filter((u) => !existingDrisPhones.includes(u.phone));
+
+//     if (newUsers.length === 0) {
+//       return res.status(200).json({
+//         success: false,
+//         message: "No new users to insert (all phone numbers already exist)",
+//       });
+//     }
+
+//     // Insert karo only new users
+//     await DrisModel.insertMany(newUsers, { ordered: true });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Users inserted",
+//     });
+//   } catch (err) {
+//     console.error("Insertion error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//       reason: err?.writeErrors?.[0]?.errmsg || "Unknown error",
+//     });
+//   }
+// };
 exports.importUsersFromCSV = async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ message: "File required" });
-    // CSV read
+    if (!req.file) {
+      return res.status(400).json({ message: "File required" });
+    }
+
+    // Step 1: Read CSV
     const result = await csv().fromFile(req.file.path);
 
-    // CSV se users banaye
+    // Step 2: Prepare base data from CSV
     const data = result.map((row) => ({
+      id: row.UserId || row.id || null, // CSV ke id field se
       name: row.ClientName,
       email: row.ClientEmail,
       gender: row.Gender,
-      id: row.id,
-      phone: row.Phone,
-      id: row.UserId,
+      phone: String(row.Phone).trim(),
+      existingUser: true,
       status: "N/A",
     }));
 
-    // Sare phone numbers nikaale
+    // Step 3: Collect all phone numbers
     const phones = data.map((u) => u.phone);
 
-    // ----------------------------
-    // Step 1: Pehle UserModel me check karo
-    // ----------------------------
-    const existingUserPhones = await User.find(
+    // Step 4: Find existing users in User model
+    const existingUsers = await User.find(
       { phone: { $in: phones } },
       { phone: 1 }
     );
-    const existingUserPhoneList = existingUserPhones.map((u) => u.phone);
 
-    // jo phones UserModel me nahi hai unko insert kar do
-    const newUserPhones = phones.filter(
-      (p) => !existingUserPhoneList.includes(p)
-    );
+    const existingUserPhones = existingUsers.map((u) => String(u.phone));
+
+    // Step 5: Create new users in User model (for missing phones)
+    const newUserPhones = phones.filter((p) => !existingUserPhones.includes(p));
     if (newUserPhones.length > 0) {
-      const phoneDocs = newUserPhones.map((p) => ({ phone: p }));
-      await User.insertMany(phoneDocs, { ordered: true });
+      const newUserDocs = newUserPhones.map((p) => ({
+        phone: p,
+        existingUser: true,
+      }));
+      await User.insertMany(newUserDocs, { ordered: true });
     }
 
-    // ----------------------------
-    // Step 2: Ab DrisModel ke liye process
-    // ----------------------------
+    // Step 6: Re-fetch all users to build a phone → _id map
+    const allUsers = await User.find(
+      { phone: { $in: phones } },
+      { _id: 1, phone: 1 }
+    );
+
+    const userMap = new Map();
+    allUsers.forEach((u) => userMap.set(String(u.phone), u._id));
+
+    // Step 7: Find existing Dris users (avoid duplicates)
     const existingDrisUsers = await DrisModel.find(
       { phone: { $in: phones } },
       { phone: 1 }
     );
-    const existingDrisPhones = existingDrisUsers.map((u) => u.phone);
+    const existingDrisPhones = existingDrisUsers.map((u) => String(u.phone));
 
-    // Filter karo sirf naye users ke liye
+    // Step 8: Filter new Dris entries only
     const newUsers = data.filter((u) => !existingDrisPhones.includes(u.phone));
 
     if (newUsers.length === 0) {
@@ -125,12 +212,20 @@ exports.importUsersFromCSV = async (req, res) => {
       });
     }
 
-    // Insert karo only new users
-    await DrisModel.insertMany(newUsers, { ordered: true });
+    // Step 9: Add userId + id to each new Dris record
+    const drisToInsert = newUsers.map((u) => ({
+      ...u,
+      id: u.id || null, // from CSV
+      userId: userMap.get(String(u.phone)) || null, // from User model
+    }));
+
+    // Step 10: Insert new records
+    await DrisModel.insertMany(drisToInsert, { ordered: true });
 
     return res.status(200).json({
       success: true,
-      message: "Users inserted",
+      message: "Users inserted successfully with id and userId",
+      insertedCount: drisToInsert.length,
     });
   } catch (err) {
     console.error("Insertion error:", err);

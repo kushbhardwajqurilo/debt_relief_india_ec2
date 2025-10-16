@@ -113,11 +113,20 @@ exports.verifyOTP = async (req, res) => {
     }
     // Create JWT token
     const token = jwt.sign(
-      { userId: user._id, role: "user" },
+      { userId: user._id, role: "user", phone },
       process.env.SecretKey,
       { expiresIn: "7d" }
     );
 
+    // check user is existinge user or new
+    if (user.existingUser) {
+      return res.status(200).json({
+        success: true,
+        message: "Login Successfull",
+        token,
+        status: "existingUser",
+      });
+    }
     //  Check KYC status
     const isKycApprove = await KYCmodel.findOne({
       $or: [{ alternatePhone: phone }, { phone }],
@@ -467,24 +476,87 @@ exports.changePhoneNumber = async (req, res) => {
 };
 
 // get user profiles
+// exports.getUserProfile = async (req, res) => {
+//   try {
+//     const { user_id } = req;
+//     console.log("user", user_id);
+//     if (!user_id) {
+//       return res.status(400).json({ success: false, message: "user required" });
+//     }
+//     // first find in users details
+//     const user_profile = await KYCmodel.findOne({ _id: user_id });
+//     if (
+//       !user_profile.userProfile ||
+//       user_profile.userProfile.length === 0 ||
+//       user_profile.userProfile == ""
+//     ) {
+//       const profile = await KYCmodel.findOne({ user_id }).select(
+//         "-aadhar -backAdhar -pan -__v  -status -date"
+//       );
+//       if (!profile) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "User profile not found try again.",
+//         });
+//       }
+//     }
+//     const profile = await KYCmodel.findOne({ user_id }).select(
+//       "-aadhar -backAdhar -pan -__v  -status -date"
+//     );
+//     if (!profile) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "User profile not found try again." });
+//     }
+//     return res.status(200).json({ success: true, data: profile });
+//   } catch (error) {
+//     return res.status(400).json({ success: false, message: error?.message });
+//   }
+// };
+
 exports.getUserProfile = async (req, res) => {
   try {
-    const { user_id } = req;
-    console.log("user", user_id);
-    if (!user_id) {
-      return res.status(400).json({ success: false, message: "user required" });
+    const { user_id, phone } = req;
+
+    // 🔹 Step 1: Validate inputs
+    if (!user_id && !phone) {
+      return res.status(400).json({
+        success: false,
+        message: "User ID or phone number is required",
+      });
     }
-    const profile = await KYCmodel.findOne({ user_id }).select(
-      "-aadhar -backAdhar -pan -__v  -status -date"
-    );
+
+    // 🔹 Step 2: Try to find in User model (by user_id or phone)
+    let profile = await User.findOne({
+      $or: [{ _id: user_id }, { phone }],
+    }).select("-password -__v -createdAt -updatedAt");
+
+    // 🔹 Step 3: If not found or userProfile missing, check KYCmodel
+    if (!profile || !profile.userProfile || profile.userProfile === "") {
+      profile = await KYCmodel.findOne({
+        $or: [{ user_id }, { phone }],
+      }).select("-aadhar -backAdhar -pan -__v -status -date");
+    }
+
+    // 🔹 Step 4: If still not found
     if (!profile) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User profile not found try again." });
+      return res.status(400).json({
+        success: false,
+        message: "User profile not found. Please try again.",
+      });
     }
-    return res.status(200).json({ success: true, data: profile });
+
+    // 🔹 Step 5: Return success response
+    return res.status(200).json({
+      success: true,
+      data: profile,
+    });
   } catch (error) {
-    return res.status(400).json({ success: false, message: error?.message });
+    console.error("getUserProfile error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Internal Server Error",
+    });
   }
 };
 
@@ -492,9 +564,10 @@ exports.getUserProfile = async (req, res) => {
 
 exports.updateUserProfilePicture = async (req, res) => {
   try {
-    const { user_id } = req;
+    const { user_id, phone } = req;
     const profile = req.file;
-    if (!user_id) {
+    // console.log("file", profile);
+    if ((!user_id, !phone)) {
       return res
         .status(400)
         .json({ success: false, message: "Invaid User Credentials" });
@@ -503,6 +576,14 @@ exports.updateUserProfilePicture = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "User_id Not Valid" });
+    }
+    const user = await User.findOne({ $or: [{ _id: user_id }, { phone }] });
+    if (user.existingUser === true) {
+      user.userProfile = profile.location;
+      await user.save();
+      return res
+        .status(201)
+        .json({ success: false, messge: "Profile Picture Uploaded" });
     }
     const userKyc = await KYCmodel.findOne({ user_id });
     if (!userKyc) {

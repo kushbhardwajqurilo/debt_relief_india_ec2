@@ -161,6 +161,10 @@ const userSchema = new mongoose.Schema({
   id: {
     type: String,
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+  },
   name: {
     type: String,
     required: true,

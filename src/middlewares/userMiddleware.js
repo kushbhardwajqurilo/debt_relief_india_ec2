@@ -5,6 +5,7 @@ exports.UserAuthMiddleWare = async (req, res, next) => {
     const userInfo = jsonToken.verify(authToken, process.env.SecretKey);
     if (userInfo) {
       req.user_id = userInfo.userId;
+      req.phone = userInfo.phone;
       req.role = userInfo.role;
       next();
     } else {

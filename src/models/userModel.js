@@ -1,6 +1,11 @@
 const mongoose = require("mongoose");
 const userSchema = mongoose.Schema({
   phone: { type: String },
+  existingUser: { type: Boolean, default: false },
+  userProfile: {
+    type: String,
+    default: "",
+  },
   aternatePhone: { type: String, default: "" },
   otp: { type: Number, default: 0 },
   otpExpire: { type: Date, default: "" },

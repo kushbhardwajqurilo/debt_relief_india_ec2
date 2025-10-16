@@ -52,7 +52,6 @@ subscriptionRouter.get(
   roleAuthenticaton("admin"),
   getAllUserToAdmin
 );
-
 subscriptionRouter.post(
   "/markAsPaid",
   AuthMiddleWare,

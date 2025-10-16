@@ -18,6 +18,7 @@ exports.SubscriptionsController = async (req, res, next) => {
     };
     const { admin_id, role } = req;
     const { subscription, gst, client, duedate } = req.body;
+    console.log("body", req.body);
     const fees = parseInt(subscription);
     const amount = fees + (fees * gst) / 100;
     if (!admin_id || !role) {
@@ -48,7 +49,7 @@ exports.SubscriptionsController = async (req, res, next) => {
     const payload = {
       adminId: admin_id,
       subscription,
-      userId: client,
+      userId: new mongoose.Types.ObjectId(client),
       gst,
       amount: Math.round(amount),
       dueDate: duedate,
@@ -239,6 +240,64 @@ exports.deleteSubscription = async (req, res, next) => {
 };
 
 // get all users to admin
+// exports.getAllUserToAdmin = async (req, res) => {
+//   try {
+//     const validation = {
+//       admin_id: "",
+//       role: "",
+//     };
+
+//     const { admin_id, role } = req;
+
+//     // validation
+//     for (let val of Object.keys(validation)) {
+//       if (!req[val] || req[val].toString().trim().length === 0) {
+//         return res
+//           .status(400)
+//           .json({ success: false, message: `${val} is required` });
+//       }
+//       if (val === "admin_id") {
+//         if (!mongoose.Types.ObjectId.isValid(req[val])) {
+//           return res
+//             .status(400)
+//             .json({ success: false, message: "admin_id not valid" });
+//         }
+//       }
+//     }
+
+//     // fetch all users
+//     const drisUsers = await DrisModel.find({ isDelete: { $ne: true } });
+//     const kycUsers = await KYCmodel.find();
+
+//     // make map of kyc users by phone
+//     const kycMap = new Map();
+//     kycUsers.forEach((k) => {
+//       if (k.phone) {
+//         kycMap.set(k.phone, k);
+//       }
+//     });
+
+//     // now filter & map
+//     const formateUser = drisUsers
+//       .filter((e) => e.phone && kycMap.has(e.phone))
+//       .map((e) => {
+//         const kyc = kycMap.get(e.phone);
+//         return {
+//           id: e.id, // from DrisModel
+//           name: e.name, // from DrisModel
+//           _id: kyc.user_id, // from KYCmodel (not DrisModel)
+//         };
+//       });
+//     return res.status(200).json({ success: true, data: formateUser });
+//   } catch (error) {
+//     return res.status(500).json({
+//       success: false,
+//       message: error.message,
+//       error,
+//     });
+//   }
+// };
+
 exports.getAllUserToAdmin = async (req, res) => {
   try {
     const validation = {
@@ -264,30 +323,53 @@ exports.getAllUserToAdmin = async (req, res) => {
       }
     }
 
-    // fetch all users
+    // fetch all collections
     const drisUsers = await DrisModel.find({ isDelete: { $ne: true } });
+    const allUsers = await User.find({});
     const kycUsers = await KYCmodel.find();
 
-    // make map of kyc users by phone
-    const kycMap = new Map();
-    kycUsers.forEach((k) => {
-      if (k.phone) {
-        kycMap.set(k.phone, k);
-      }
+    // maps for quick lookup
+    const userMap = new Map();
+    allUsers.forEach((u) => {
+      if (u.phone) userMap.set(u.phone, u);
     });
 
-    // now filter & map
-    const formateUser = drisUsers
-      .filter((e) => e.phone && kycMap.has(e.phone))
-      .map((e) => {
-        const kyc = kycMap.get(e.phone);
+    const kycMap = new Map();
+    kycUsers.forEach((k) => {
+      if (k.phone) kycMap.set(k.phone, k);
+    });
+
+    // main mapping
+    const formateUser = drisUsers.map((e) => {
+      const user = userMap.get(e.phone);
+      const kyc = kycMap.get(e.phone);
+
+      // CASE 1: existingUser = true → from User model
+      if (user && user.existingUser === true) {
         return {
           id: e.id, // from DrisModel
-          name: e.name, // from DrisModel
-          _id: kyc.user_id, // from KYCmodel (not DrisModel)
+          name: user.name || e.name, // prefer User name
+          user_id: user._id, // from User
         };
-      });
-    return res.status(200).json({ success: true, data: formateUser });
+      }
+
+      // CASE 2: existingUser = false → from KYCmodel
+      if (kyc) {
+        return {
+          id: e.id, // from DrisModel
+          name: e.name || kyc.name, // prefer Dris name
+          user_id: kyc.user_id, // from KYCmodel
+        };
+      }
+
+      // CASE 3: neither exists → skip or return null
+      return null;
+    });
+
+    // filter out nulls
+    const finalData = formateUser.filter(Boolean);
+
+    return res.status(200).json({ success: true, data: finalData });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -365,6 +447,10 @@ exports.getPaidSubscriptions = async (req, res) => {
     const adminId = req.admin_id;
     const { userId } = req.query; // optional filters
 
+    if (!userId)
+      return res
+        .status(400)
+        .json({ success: false, message: "user credential required" });
     const filter = {};
     if (userId) filter.userId = userId;
     if (adminId) filter.adminId = adminId;
@@ -376,6 +462,11 @@ exports.getPaidSubscriptions = async (req, res) => {
       .populate("subscriptionId", "subscription amount gst dueDate") // optional: populate subscription info
       .sort({ paidForDueDate: -1 });
 
+    if (!paidSubs || paidSubs.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No Paid Subscription found" });
+    }
     return res.status(200).json({ success: true, data: paidSubs });
   } catch (err) {
     console.error(err);
