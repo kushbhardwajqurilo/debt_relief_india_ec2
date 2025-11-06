@@ -19,6 +19,8 @@ const {
   getDialogBoxToAll,
   getDialogBoxToAdmin,
   dataBackup,
+  getOtp,
+  forgetPassword,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -78,7 +80,7 @@ adminRouter.post("/add-banks", UploadSingleImage.single("image"), addBanks);
 adminRouter.get("/get-banks", getBanks);
 
 //regarding change password routes
-adminRouter.post("/request-otp", requestOtp);
+adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
 adminRouter.post("/verify-otp", verifyOtpForAdmin);
 adminRouter.put("/change-password", forgetPasswordMddleware, changePasswprd);
 adminRouter.post("/call-now-feature", AuthMiddleWare, callNowSetup);
@@ -100,7 +102,7 @@ adminRouter.post(
 adminRouter.post(
   "/get-content",
   UserAuthMiddleWare,
-  roleAuthenticaton("user"),
+  roleAuthenticaton("user", "admin"),
   getDialogBoxToAll
 );
 adminRouter.get(
@@ -115,4 +117,7 @@ adminRouter.post(
   [AuthMiddleWare, roleAuthenticaton("admin")],
   dataBackup
 );
+
+adminRouter.post("/get-otp", getOtp);
+adminRouter.post("/forget-password", forgetPassword);
 module.exports = adminRouter;

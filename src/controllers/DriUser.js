@@ -84,11 +84,19 @@ exports.importUsersFromCSV = async (req, res) => {
       ...u,
       id: u.id || null, // from CSV
       userId: userMap.get(String(u.phone)) || null, // from User model
+      user_id: userMap.get(String(u.phone)) || null, // from User model
     }));
-
     // Step 10: Insert new records
     await DrisModel.insertMany(drisToInsert, { ordered: true });
-    console.log("dud", drisToInsert);
+    const kycToInsert = newUsers.map((u) => ({
+      ...u,
+      id: u.id || null, // from CSV
+      userId: userMap.get(String(u.phone)) || null, // from User model
+      user_id: userMap.get(String(u.phone)) || null, // from User model
+      status: "aprrove",
+      userType: "existing",
+    }));
+    await KYCmodel.insertMany(kycToInsert, { ordered: true });
     return res.status(200).json({
       success: true,
       message: "Users inserted successfully with id and userId",
@@ -248,7 +256,7 @@ exports.getAssignAdvocate = async (req, res, next) => {
     if (!advocate) {
       return res
         .status(400)
-        .json({ success, message: "advocate not found try again..." });
+        .json({ success: false, message: "advocate not found try again..." });
     }
     return res.status(200).json({ success: true, data: advocate });
   } catch (err) {
@@ -386,6 +394,11 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
       setAdvocate.assignUsers.push(driuser.userId);
       await setAdvocate.save();
     }
+    const kycAdvocate = await KYCmodel.findOne({ phone: phone });
+    kycAdvocate.assign_advocate = new mongoose.Types.ObjectId(
+      req.body.advocate
+    );
+    await kycAdvocate.save();
     if (driuser?.modifiedCount === 0) {
       return res
         .status(400)
@@ -435,7 +448,6 @@ exports.permanentDeleteUserData = async (req, res) => {
     const results = await Promise.all([
       DrisModel.deleteMany(phoneFilter), // 1
       fcmTokenModel.deleteMany(userIdFilter), // 2
-      KYCmodel.deleteMany(kycFilter), // 3
       NotificationModel.deleteMany(userIdFilter), // 4
       paidSubscriptionModel.deleteMany(userIdFilter), // 5
       subscriptionModel.deleteMany(userIdFilter), // 6
@@ -446,6 +458,7 @@ exports.permanentDeleteUserData = async (req, res) => {
         { assignUsers: { $in: userIds } },
         { $pull: { assignUsers: { $in: userIds } } }
       ),
+      KYCmodel.deleteMany(kycFilter), // 3
     ]);
 
     return res.status(200).json({
@@ -461,5 +474,3 @@ exports.permanentDeleteUserData = async (req, res) => {
     });
   }
 };
-
-//  1 inside DrisModel delelte data from phone, 2 FcmTokens model have userId for delete, 3. Invoice also vale phone for delete , 4. kycmodel have phone or user_id, 5. notification model contain userId, 6.paidSubscription model contain userId, 7. paidSubscrioption model also contain userId, sbscriptionModel also contain userId, userModel also conntain phone, usersaivng modle contain user_id now delete data from all these collection by there field of match

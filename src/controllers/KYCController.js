@@ -299,7 +299,8 @@ exports.ApproveByAdmin = async (req, res) => {
 //
 exports.getAllKycDetails = async (req, res) => {
   try {
-    const fetchKYCUsers = await KYCmodel.find({}).populate("user_id");
+    const query = { userType: { $ne: "existing" } };
+    const fetchKYCUsers = await KYCmodel.find(query).populate("user_id");
     if (!fetchKYCUsers || fetchKYCUsers.length === 0) {
       return res.status(404).json({
         success: false,
@@ -412,7 +413,7 @@ exports.CompleteKYC = async (req, res, next) => {
         }
       }
     }
-
+    const UserCheck = isUser.status == true ? "existing" : "new";
     // 6. Prepare KYC data
     const payload = {
       user_id,
@@ -424,6 +425,7 @@ exports.CompleteKYC = async (req, res, next) => {
       phone,
       image: imageResults,
       pdf: pdfResults,
+      userType: UserCheck,
     };
 
     // 7. Save KYC

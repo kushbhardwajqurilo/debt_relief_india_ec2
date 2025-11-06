@@ -59,6 +59,7 @@ const adminSchema = mongoose.Schema({
     type: Number,
     default: 0,
   },
+  otpExpire: { type: Date, default: "" },
 });
 
 const adminModel = new mongoose.model("admin", adminSchema);

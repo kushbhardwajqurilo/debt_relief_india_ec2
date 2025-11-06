@@ -15,7 +15,7 @@ const kycSchema = new mongoose.Schema({
   },
   image: {
     type: [String],
-    required: [true, "At least one document is required"],
+
     default: [],
   },
   pdf: {
@@ -48,7 +48,6 @@ const kycSchema = new mongoose.Schema({
   },
   gender: {
     type: String,
-    required: [true, "gender required"],
   },
   joinDate: {
     type: Date,
@@ -57,6 +56,9 @@ const kycSchema = new mongoose.Schema({
   assign_advocate: {
     type: String,
     ref: "advocate",
+  },
+  userType: {
+    type: String,
   },
 });
 

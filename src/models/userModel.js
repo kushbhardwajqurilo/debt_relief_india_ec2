@@ -4,7 +4,7 @@ const userSchema = mongoose.Schema({
   existingUser: { type: Boolean, default: false },
   userProfile: {
     type: String,
-    default: "",
+    default: "blank.jpg",
   },
   aternatePhone: { type: String, default: "" },
   otp: { type: Number, default: 0 },

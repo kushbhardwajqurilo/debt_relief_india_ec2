@@ -210,14 +210,14 @@ exports.uploadInvoice = async (req, res, next) => {
     }
 
     // Update DrisModel
-    const driuser = await DrisModel.findOneAndUpdate(
-      { phone },
-      {
-        $inc: { emiPay: 1 },
-        $set: { status: "pending", invoiceInsert: true },
-      },
-      { new: true, upsert: true }
-    );
+    // const driuser = await DrisModel.findOneAndUpdate(
+    //   { phone },
+    //   {
+    //     $inc: { emiPay: 1 },
+    //     $set: { status: "pending", invoiceInsert: true },
+    //   },
+    //   { new: true, upsert: true }
+    // );
 
     const custom_notification = await customeNoticationModel.find({});
     const invoice_noti =

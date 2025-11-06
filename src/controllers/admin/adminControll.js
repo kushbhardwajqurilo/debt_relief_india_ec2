@@ -15,6 +15,7 @@ const padiDialBoxModel = require("../../models/paidDialogBoxModel");
 const User = require("../../models/userModel");
 const { default: mongoose } = require("mongoose");
 const backupDatabase = require("../back/db/backup");
+const { default: axios } = require("axios");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -269,6 +270,7 @@ exports.updateAdminDetails = async (req, res) => {
 exports.requestOtp = async (req, res, next) => {
   try {
     const { admin_id } = req;
+    console.log("id", admin_id);
     if (!admin_id) {
       return res.status(401).json({
         success: false,
@@ -347,7 +349,7 @@ exports.verifyOtpForAdmin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid OTP" });
     }
 
-    const verifyToken = await jwt.sign(
+    const verifyToken = jwt.sign(
       { key: admin._id },
       process.env.ChangePasswordKey,
       { expiresIn: "5m" }
@@ -356,6 +358,7 @@ exports.verifyOtpForAdmin = async (req, res) => {
       .status(200)
       .json({ success: true, message: "OTP verified", verifyToken });
   } catch (error) {
+    console.log("error", error);
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -843,3 +846,98 @@ exports.dataBackup = async (req, res) => {
     return res.status(500).json({ success: false, message: error.err, error });
   }
 };
+
+// forget password  start
+
+exports.getOtp = async (req, res) => {
+  try {
+    const { data } = req.body;
+
+    // Phone validation
+    if (!data) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid 10-digit email or phone number is required",
+      });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000);
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 min expiry
+    const query = { $or: [{ phone: data }, { email: data }] };
+    let admin = await adminModel.findOne(query);
+
+    admin.otp = Number(otp);
+    admin.otpExpire = otpExpiry;
+    await admin.save();
+
+    const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${Number(
+      admin.phone
+    )}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
+
+    const response = await axios.get(apiUrl);
+
+    if (response.data.type === "SUCCESS") {
+      return res.status(200).json({
+        success: true,
+        message: `OTP sent Successfully to ${admin.phone}`,
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send OTP",
+        error: response.data,
+      });
+    }
+  } catch (err) {
+    console.error("OTP sending error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: err.message,
+    });
+  }
+};
+
+exports.forgetPassword = async (req, res, next) => {
+  try {
+    const { otp, password, data } = req.body;
+    if (!otp || !password || !data) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Credentials",
+      });
+    }
+    const admin = await adminModel.findOne({
+      $or: [{ phone: data }, { email: data }],
+    });
+    if (!admin) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Admin Not Found" });
+    }
+    if (admin.otp !== Number(otp)) {
+      return res.status(400).json({ success: false, message: "Invaid OTP" });
+    }
+    if (!admin.otpExpire || new Date() > new Date(admin.otpExpire)) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP has expired.  Please request a new OTP ",
+      });
+    }
+    const hashPass = await hashPassword(password);
+    admin.otp = "";
+    admin.otpExpire = "";
+    admin.password = hashPass;
+    await admin.save();
+    return res.status(201).json({
+      success: true,
+      message: "Password Updated",
+    });
+  } catch (error) {
+    console.log("d", error);
+    return res
+      .status(500)
+      .json({ sccuess: false, message: error.message, error });
+  }
+};
+// forget password end

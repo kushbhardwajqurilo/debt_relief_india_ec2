@@ -135,7 +135,9 @@ app.use(`${baseURI}notification`, notificationRouter);
 app.get("/", (req, res) => {
   return res.render("index");
 });
-
+app.get("/hello", async (req, res, next) => {
+  res.json({ name: "devesh" });
+});
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: "API endpoint not found" });
 });

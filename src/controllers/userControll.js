@@ -115,7 +115,7 @@ exports.verifyOTP = async (req, res) => {
     const token = jwt.sign(
       { userId: user._id, role: "user", phone },
       process.env.SecretKey,
-      { expiresIn: "7d" }
+      { expiresIn: "1d" }
     );
 
     // check user is existinge user or new
@@ -526,27 +526,60 @@ exports.getUserProfile = async (req, res) => {
       });
     }
 
-    // 🔹 Step 2: Try to find in User model (by user_id or phone)
+    // 🔹 Step 2: Find user from User model
     let profile = await User.findOne({
       $or: [{ _id: user_id }, { phone }],
     }).select("-password -__v -createdAt -updatedAt");
 
-    // 🔹 Step 3: If not found or userProfile missing, check KYCmodel
-    if (!profile || !profile.userProfile || profile.userProfile === "") {
+    let kycData = null;
+
+    // 🔹 Step 3: If user found, handle based on existingUser flag
+    if (profile) {
+      let userProfile = profile.toObject ? profile.toObject() : profile;
+
+      // find KYC data
+      kycData = await KYCmodel.findOne({
+        $or: [{ user_id }, { phone }],
+      }).select(
+        "name profile -_id" // only get required fields
+      );
+
+      // ✅ Case 1: existing user → only add name from KYC
+      if (userProfile.existingUser === true) {
+        if (kycData && kycData.name) {
+          userProfile.name = kycData.name;
+        }
+      }
+
+      // ✅ Case 2: existing user = false → only replace userProfile with KYC profile URL
+      else if (
+        userProfile.existingUser === false &&
+        kycData &&
+        kycData.profile
+      ) {
+        userProfile.userProfile = kycData.profile;
+      }
+
+      profile = userProfile;
+      userProfile.name = kycData.name;
+    }
+
+    // 🔹 Step 4: If user not found, check KYCmodel directly
+    if (!profile) {
       profile = await KYCmodel.findOne({
         $or: [{ user_id }, { phone }],
       }).select("-aadhar -backAdhar -pan -__v -status -date");
     }
 
-    // 🔹 Step 4: If still not found
+    // 🔹 Step 5: If still not found
     if (!profile) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
         message: "User profile not found. Please try again.",
       });
     }
 
-    // 🔹 Step 5: Return success response
+    // 🔹 Step 6: Return final response
     return res.status(200).json({
       success: true,
       data: profile,
@@ -566,6 +599,7 @@ exports.updateUserProfilePicture = async (req, res) => {
   try {
     const { user_id, phone } = req;
     const profile = req.file;
+
     // console.log("file", profile);
     if ((!user_id, !phone)) {
       return res
