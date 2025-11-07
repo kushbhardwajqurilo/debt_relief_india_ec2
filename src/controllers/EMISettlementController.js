@@ -173,13 +173,13 @@ exports.marksAsPaid = async (req, res) => {
         .json({ success: false, message: "No DueDate Found" });
     }
 
-    if (user.status === "Closed")
+    if (user.status === "closed")
       return res
         .status(200)
         .json({ success: false, message: "User Service Already Closed..." });
 
     if (user.totalEmi == user.emiPay) {
-      user.status = "Close";
+      user.status = "closed";
       await user.save();
       return res.status(400).json({ suceess: false, message: "All EMI Paid" });
     }
