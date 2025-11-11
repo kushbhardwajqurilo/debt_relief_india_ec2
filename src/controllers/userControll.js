@@ -114,8 +114,7 @@ exports.verifyOTP = async (req, res) => {
     // Create JWT token
     const token = jwt.sign(
       { userId: user._id, role: "user", phone },
-      process.env.SecretKey,
-      { expiresIn: "1d" }
+      process.env.SecretKey
     );
 
     // check user is existinge user or new
