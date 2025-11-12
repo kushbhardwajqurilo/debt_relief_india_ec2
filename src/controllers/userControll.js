@@ -34,11 +34,11 @@ exports.sendOTP = async (req, res) => {
     user.otpExpire = otpExpiry;
     await user.save();
 
-    const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${phone}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
+    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your OTP for Login is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690
+&format=JSON`;
 
     const response = await axios.get(apiUrl);
-
-    if (response.data.type === "SUCCESS") {
+    if (response.data.status === "success") {
       return res.status(200).json({
         success: true,
         message: "OTP sent successfully",

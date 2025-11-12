@@ -870,10 +870,14 @@ exports.getOtp = async (req, res) => {
     admin.otpExpire = otpExpiry;
     await admin.save();
 
-    const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${Number(
-      admin.phone
-    )}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
+    // const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${Number(
+    //   admin.phone
+    // )}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
 
+    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${Number(
+      admin.phone
+    )}&message=Your OTP for Reset Password is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690
+&format=JSON`;
     const response = await axios.get(apiUrl);
 
     if (response.data.type === "SUCCESS") {
