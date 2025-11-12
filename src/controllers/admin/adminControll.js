@@ -869,31 +869,29 @@ exports.getOtp = async (req, res) => {
     admin.otp = Number(otp);
     admin.otpExpire = otpExpiry;
     await admin.save();
-
+    const phone = admin.phone;
     // const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${Number(
     //   admin.phone
     // )}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
 
-    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${Number(
-      admin.phone
-    )}&message=Your OTP for Reset Password is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690
-&format=JSON`;
-    const response = await axios.get(apiUrl);
+    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Reset Password OTP is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690`;
 
-    if (response.data.type === "SUCCESS") {
+    const response = await axios.get(apiUrl);
+    console.log("otp resust", response.data);
+    if (response.data.status === "success") {
       return res.status(200).json({
         success: true,
         message: `OTP sent Successfully to ${admin.phone}`,
       });
     } else {
-      return res.status(500).json({
+      return res.status(400).json({
         success: false,
         message: "Failed to send OTP",
         error: response.data,
       });
     }
   } catch (err) {
-    console.error("OTP sending error:", err);
+    console.log("OTP sending error:", err);
     return res.status(500).json({
       success: false,
       message: "Internal server error",
