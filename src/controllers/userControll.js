@@ -9,6 +9,7 @@ const {
 } = require("../config/expo-push-notification/expoNotification");
 const { default: axios } = require("axios");
 const { deleteFileFromS3, s3Client } = require("../config/aws-s3/s3Config");
+const DrisModel = require("../models/DriUserModel");
 const otpStore = {};
 exports.sendOTP = async (req, res) => {
   try {
@@ -61,11 +62,11 @@ exports.sendOTP = async (req, res) => {
 };
 
 // Verify OTP
+// Verify OTP
 exports.verifyOTP = async (req, res) => {
   try {
     const { phone, otp, expoToken } = req.body;
 
-    // Basic validation
     if (!phone || !otp) {
       return res.status(400).json({
         success: false,
@@ -73,7 +74,70 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    // Get user from DB
+    // ✅ PLAY STORE DUMMY LOGIN + AUTO KYC
+    if (phone === "9999999999" && Number(otp) === 1234) {
+      let user = await User.findOne({ phone });
+
+      if (!user) {
+        user = await User.create({
+          phone,
+          existingUser: true,
+        });
+      }
+
+      // 🔐 CREATE / ENSURE KYC
+      let kyc = await KYCmodel.findOne({ phone });
+
+      if (!kyc) {
+        kyc = await KYCmodel.create({
+          user_id: user._id,
+          phone,
+          alternatePhone: phone,
+          status: "approved",
+          name: "dummy",
+          lastname: "user",
+          email: "dummyuser@exapmple.com",
+          gender: "male",
+          assign_advocate: "690d98c28b92f5a301990018",
+          userType: "existing",
+        });
+      }
+      // let driuser = await DrisModel.findOne({ phone });
+
+      // if (!driuser) {
+      //   kyc = await KYCmodel.create({
+      //     user_id: user._id,
+      //     phone,
+      //     alternatePhone: phone,
+      //     status: "approved",
+      //     name: "dummy",
+      //     lastname: "user",
+      //     email: "dummyuser@exapmple.com",
+      //     gender: "male",
+      //     assign_advocate: "690d98c28b92f5a301990018",
+      //     userType: "existing",
+      //   });
+      // }
+
+      if (expoToken) {
+        await saveExpoToken(user._id, expoToken);
+      }
+
+      const token = jwt.sign(
+        { userId: user._id, role: "user", phone },
+        process.env.SecretKey
+      );
+
+      return res.status(200).json({
+        success: true,
+        message: "Login Successful (Test Account)",
+        token,
+        status: "approved",
+        isTestAccount: true,
+      });
+    }
+
+    // 🔒 ORIGINAL USER FLOW (NO CHANGE)
     let user = await User.findOne({
       $or: [{ phone }, { aternatePhone: phone }],
     });
@@ -88,7 +152,6 @@ exports.verifyOTP = async (req, res) => {
       }
     }
 
-    // OTP & expiry check
     if (!user.otp || !user.otpExpire || Date.now() > user.otpExpire) {
       return res.status(400).json({
         success: false,
@@ -103,7 +166,6 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    //  OTP correct → clear OTP fields
     user.otp = null;
     user.otpExpire = null;
     await user.save();
@@ -111,13 +173,12 @@ exports.verifyOTP = async (req, res) => {
     if (expoToken) {
       await saveExpoToken(user._id, expoToken);
     }
-    // Create JWT token
+
     const token = jwt.sign(
       { userId: user._id, role: "user", phone },
       process.env.SecretKey
     );
 
-    // check user is existinge user or new
     if (user.existingUser) {
       return res.status(200).json({
         success: true,
@@ -126,7 +187,7 @@ exports.verifyOTP = async (req, res) => {
         status: "existingUser",
       });
     }
-    //  Check KYC status
+
     const isKycApprove = await KYCmodel.findOne({
       $or: [{ alternatePhone: phone }, { phone }],
     });
@@ -136,16 +197,16 @@ exports.verifyOTP = async (req, res) => {
         success: true,
         message: "Login successful",
         token,
-        status: isKycApprove.status, // pending / approved / rejected
+        status: isKycApprove.status,
       });
     }
 
-    const check = await sendNotificationToSingleUser(
+    await sendNotificationToSingleUser(
       expoToken,
       "Login Successfully",
       "Debt Relief India"
     );
-    // New user (no KYC yet)
+
     return res.status(200).json({
       success: true,
       message: "Login successful",
@@ -160,6 +221,7 @@ exports.verifyOTP = async (req, res) => {
     });
   }
 };
+
 exports.userController = async (req, res, next) => {
   try {
     const { user_id } = req;
