@@ -93,7 +93,7 @@ exports.verifyOTP = async (req, res) => {
           user_id: user._id,
           phone,
           alternatePhone: phone,
-          status: "approved",
+          status: "approve",
           name: "dummy",
           lastname: "user",
           email: "dummyuser@exapmple.com",
