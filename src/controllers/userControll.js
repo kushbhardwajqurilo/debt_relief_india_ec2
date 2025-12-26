@@ -132,7 +132,7 @@ exports.verifyOTP = async (req, res) => {
         success: true,
         message: "Login Successful (Test Account)",
         token,
-        status: "approved",
+        status: "approve",
         isTestAccount: true,
       });
     }
