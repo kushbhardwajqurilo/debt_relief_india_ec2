@@ -11,7 +11,8 @@ const kycSchema = new mongoose.Schema({
   },
   profile: {
     type: String,
-    default: "blank.jpg",
+    default:
+      "https://debtreliefindia-app.s3.eu-north-1.amazonaws.com/Banners/1767774594331-880255069-favicon.png",
   },
   image: {
     type: [String],
