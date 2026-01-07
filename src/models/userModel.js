@@ -4,7 +4,8 @@ const userSchema = mongoose.Schema({
   existingUser: { type: Boolean, default: false },
   userProfile: {
     type: String,
-    default: "blank.jpg",
+    default:
+      "https://debtreliefindia-app.s3.eu-north-1.amazonaws.com/Banners/1767774594331-880255069-favicon.png",
   },
   aternatePhone: { type: String, default: "" },
   otp: { type: Number, default: 0 },
