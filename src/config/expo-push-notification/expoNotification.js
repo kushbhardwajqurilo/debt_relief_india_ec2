@@ -66,6 +66,7 @@ async function sentNotificationToMultipleUsers(
     to: token,
     sound: "default",
     title,
+    subtitle: type,
     body: message,
     data: {
       image:
@@ -73,7 +74,7 @@ async function sentNotificationToMultipleUsers(
       type,
     },
   }));
-
+  console.log("mess", messages);
   let allTickets = [];
   try {
     // Expo recommends chunking (100 tokens max per request)
