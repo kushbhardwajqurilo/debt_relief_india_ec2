@@ -3,7 +3,6 @@ const DrisModel = require("../../models/DriUserModel");
 const subscriptionModel = require("../../models/monthlySubscriptionModel");
 async function updateEMIDueDates() {
   const getDates = await DrisModel.find({});
-  console.log(getDates);
   const today = new Date();
   for (let rec of getDates) {
     if (!rec.dueDate) continue;
