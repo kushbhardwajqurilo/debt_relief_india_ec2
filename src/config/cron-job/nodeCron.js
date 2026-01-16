@@ -357,7 +357,7 @@ const parseDueDate = (dueDateStr) => {
 
 /* ---------- CRON ---------- */
 const cronJob = cron.schedule(
-  "30 01 * * *",
+  "35 01 * * *",
   async () => {
     try {
       console.log("⏰ Cron tick at", new Date().toLocaleString());
