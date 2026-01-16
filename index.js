@@ -19,7 +19,7 @@ if (cluster.isMaster) {
     .then(() => {
       console.log("Master connected to DB ✅");
       cronJob.start();
-      // dateCron.start();
+      dateCron.start();
 
       // Fork workers after DB is ready
       for (let i = 0; i < numCPUs; i++) {
