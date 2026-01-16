@@ -1,5 +1,6 @@
 const {
   sentNotificationToMultipleUsers,
+  sendNotificationToSingleUser,
 } = require("../../config/expo-push-notification/expoNotification");
 const {
   customeNoticationModel,
@@ -207,6 +208,47 @@ exports.getCustomNotification = async (req, res) => {
       success: false,
       message: error.message,
       error,
+    });
+  }
+};
+
+exports.sendSingleUserNotification = async (req, res, next) => {
+  const requriedField = ["id", "title", "message", "subtitle", "type"];
+
+  for (let fields of requriedField) {
+    if (!req.body[fields] || req.body[fields].toString().trim().length === 0) {
+      return res.status(400).json({
+        statu: false,
+        message: `${fields} Missing`,
+      });
+    }
+  }
+  const { id, title, message, subtitle, type } = req.body;
+  const getToken = await fcmTokenModel.findOne({ userId: id });
+  const createNotific = await this.createNotification(
+    id,
+    title,
+    message,
+    type,
+    subtitle
+  );
+  const send = await sendNotificationToSingleUser(
+    getToken.token,
+    message,
+    title,
+    type,
+    subtitle
+  );
+
+  if (send.success) {
+    return res.status(200).json({
+      status: true,
+      message: "Notification send",
+    });
+  } else {
+    return res.statu(400).json({
+      status: false,
+      message: "Failed to send",
     });
   }
 };
