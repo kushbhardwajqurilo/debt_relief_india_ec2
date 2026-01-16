@@ -341,27 +341,33 @@ const {
 } = require("../../controllers/notificationController/notificationsController");
 const {
   customeNoticationModel,
-} = require("../../models/customNotificationModel");
+} = require("../../models/contactYourAdvocateModel");
 
-/* ---------- HELPERS ---------- */
+/* ---------- DATE HELPERS ---------- */
 const isSameDay = (d1, d2) =>
   d1.getFullYear() === d2.getFullYear() &&
   d1.getMonth() === d2.getMonth() &&
   d1.getDate() === d2.getDate();
 
+const parseDueDate = (dueDateStr) => {
+  // expects "DD-MM-YYYY"
+  const [day, month, year] = dueDateStr.split("-");
+  return new Date(year, month - 1, day);
+};
+
+/* ---------- CRON ---------- */
 const cronJob = cron.schedule(
-  "10 01 * * *",
+  "30 01 * * *",
   async () => {
     try {
-      console.log("⏰ EMI Cron tick:", new Date().toLocaleString());
+      console.log("⏰ Cron tick at", new Date().toLocaleString());
 
       /* ---------- PENDING EMIs ---------- */
       const pendingEmis = await DrisModel.find({ status: "pending" });
       if (!pendingEmis.length) return;
 
-      /* ---------- USERS (BY PHONE) ---------- */
+      /* ---------- USERS BY PHONE ---------- */
       const phones = [...new Set(pendingEmis.map((e) => String(e.phone)))];
-
       const users = await User.find({ phone: { $in: phones } });
 
       /* ---------- PHONE → USER MAP ---------- */
@@ -373,7 +379,7 @@ const cronJob = cron.schedule(
       /* ---------- USER IDS ---------- */
       const userIds = users.map((u) => u._id.toString());
 
-      /* ---------- TOKENS FROM DB ---------- */
+      /* ---------- TOKENS ---------- */
       const tokenDocs = await fcmTokenModel.find({
         userId: { $in: userIds },
       });
@@ -388,7 +394,6 @@ const cronJob = cron.schedule(
         if (!userIdToTokens[id]) {
           userIdToTokens[id] = new Set();
         }
-
         userIdToTokens[id].add(td.token);
       });
 
@@ -417,11 +422,11 @@ const cronJob = cron.schedule(
         const user = phoneToUser[String(emi.phone)];
         if (!user) continue;
 
-        // same cron run me dubara mat bhejo
+        // same cron run me dobara mat bhejo
         if (notifiedUsers.has(user._id.toString())) continue;
 
         /* ---------- DATE WINDOW ---------- */
-        const dueDate = new Date(emi.dueDate);
+        const dueDate = parseDueDate(emi.dueDate);
         dueDate.setHours(0, 0, 0, 0);
 
         const startReminderDate = new Date(dueDate);
@@ -439,10 +444,18 @@ const cronJob = cron.schedule(
 
         /* ---------- SUBTITLE ---------- */
         let subTitle = "";
-        if (emi.Service_Fees) subTitle = "Service Fees";
-        else if (emi.Service_Advance_Total) subTitle = "Service Advance";
-        else continue;
+        if (emi.Service_Fees && emi.Service_Fees !== "") {
+          subTitle = "Service Fees";
+        } else if (
+          emi.Service_Advance_Total &&
+          emi.Service_Advance_Total !== ""
+        ) {
+          subTitle = "Service Advance";
+        } else {
+          continue;
+        }
 
+        const title = "Payment Reminder";
         const tokens = userIdToTokens[user._id.toString()] || [];
 
         /* ---------- PUSH ---------- */
@@ -450,7 +463,7 @@ const cronJob = cron.schedule(
           await sentNotificationToMultipleUsers(
             tokens,
             message,
-            "Payment Reminder",
+            title,
             subTitle
           );
         }
@@ -458,7 +471,7 @@ const cronJob = cron.schedule(
         /* ---------- SAVE NOTIFICATION ---------- */
         await insertManyNotification(
           [user._id.toString()],
-          "Payment Reminder",
+          title,
           message,
           subTitle
         );
@@ -468,10 +481,12 @@ const cronJob = cron.schedule(
 
         notifiedUsers.add(user._id.toString());
 
-        console.log(`🔔 EMI reminder sent to user ${user._id}`);
+        console.log(
+          `🔔 EMI reminder sent to user ${user._id} on ${today.toDateString()}`
+        );
       }
     } catch (err) {
-      console.error("❌ EMI Cron error:", err);
+      console.error("❌ Error in cron job:", err);
     }
   },
   {
