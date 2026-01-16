@@ -181,154 +181,6 @@
 
 // module.exports = cronJob;
 
-// const cron = require("node-cron");
-// const DrisModel = require("../../models/DriUserModel");
-// const fcmTokenModel = require("../../models/fcmTokenModel");
-// const User = require("../../models/userModel");
-// const {
-//   sentNotificationToMultipleUsers,
-// } = require("../expo-push-notification/expoNotification");
-// const {
-//   insertManyNotification,
-// } = require("../../controllers/notificationController/notificationsController");
-// const {
-//   customeNoticationModel,
-// } = require("../../models/contactYourAdvocateModel");
-
-// /* ---------- DATE HELPERS ---------- */
-// const isSameDay = (d1, d2) =>
-//   d1.getFullYear() === d2.getFullYear() &&
-//   d1.getMonth() === d2.getMonth() &&
-//   d1.getDate() === d2.getDate();
-
-// const parseDueDate = (dueDateStr) => {
-//   // expects "DD-MM-YYYY"
-//   const [day, month, year] = dueDateStr.split("-");
-//   return new Date(year, month - 1, day);
-// };
-
-// /* ---------- CRON ---------- */
-// const cronJob = cron.schedule(
-//   "0 9 * * *",
-//   async () => {
-//     try {
-//       console.log(" Cron tick at", new Date().toLocaleString());
-
-//       const pendingEmis = await DrisModel.find({ status: "pending" });
-//       if (!pendingEmis.length) return;
-
-//       const phones = [...new Set(pendingEmis.map((e) => String(e.phone)))];
-//       const users = await User.find({ phone: { $in: phones } });
-
-//       const userIdsObj = users.map((u) => u._id);
-//       const userIdsStr = users.map((u) => u._id.toString());
-
-//       const tokenDocs = await fcmTokenModel.find({
-//         $or: [{ userId: { $in: userIdsObj } }, { userId: { $in: userIdsStr } }],
-//       });
-
-//       const userIdToTokens = {};
-//       tokenDocs.forEach((td) => {
-//         const id = String(td.userId);
-//         userIdToTokens[id] = userIdToTokens[id] || [];
-//         if (td.token) userIdToTokens[id].push(td.token);
-//       });
-
-//       /* ---------- MESSAGE (NO CHANGE) ---------- */
-//       const reminder = await customeNoticationModel.findOne({});
-//       const message =
-//         reminder?.reminder_notification ||
-//         "Your EMI payment is pending. Pay Now!";
-
-//       /* ---------- TODAY (NORMALIZED) ---------- */
-//       const today = new Date();
-//       today.setHours(0, 0, 0, 0);
-
-//       /* ---------- PER-RUN USER DEDUP ---------- */
-//       const notifiedUsers = new Set();
-
-//       for (const emi of pendingEmis) {
-//         if (!emi.dueDate) continue;
-
-//         const user = users.find((u) => String(u.phone) === String(emi.phone));
-//         if (!user) continue;
-
-//         // ❌ same run me already notified
-//         if (notifiedUsers.has(user._id.toString())) continue;
-
-//         /* ---------- DUE DATE WINDOW ---------- */
-//         const dueDate = parseDueDate(emi.dueDate);
-//         dueDate.setHours(0, 0, 0, 0);
-
-//         const startReminderDate = new Date(dueDate);
-//         startReminderDate.setDate(dueDate.getDate() - 2);
-
-//         // ❌ not in reminder window
-//         if (today < startReminderDate || today > dueDate) continue;
-
-//         // ❌ already notified today
-//         if (
-//           user.lastEmiReminderDate &&
-//           isSameDay(new Date(user.lastEmiReminderDate), today)
-//         ) {
-//           continue;
-//         }
-
-//         /* ---------- SUBTITLE ---------- */
-//         let subTitle = "";
-//         if (emi.Service_Fees && emi.Service_Fees !== "") {
-//           subTitle = "Service Fees";
-//         } else if (
-//           emi.Service_Advance_Total &&
-//           emi.Service_Advance_Total !== ""
-//         ) {
-//           subTitle = "Service Advance";
-//         }
-
-//         if (!subTitle) continue;
-
-//         const title = "Payment Reminder";
-//         const tokens = userIdToTokens[user._id.toString()] || [];
-
-//         /* ---------- PUSH ---------- */
-//         if (tokens.length > 0) {
-//           await sentNotificationToMultipleUsers(
-//             tokens,
-//             message, // DB message (unchanged)
-//             title,
-//             subTitle
-//           );
-//         }
-
-//         /* ---------- SAVE NOTIFICATION ---------- */
-//         await insertManyNotification(
-//           [user._id.toString()],
-//           title,
-//           message,
-//           subTitle
-//         );
-
-//         /* ---------- UPDATE USER (DAILY DEDUP) ---------- */
-//         await User.updateOne({ _id: user._id }, { lastEmiReminderDate: today });
-
-//         notifiedUsers.add(user._id.toString());
-
-//         console.log(
-//           `🔔 EMI reminder sent to user ${user._id} on ${today.toDateString()}`
-//         );
-//       }
-//     } catch (err) {
-//       console.error("❌ Error in cron job:", err);
-//     }
-//   },
-//   {
-//     scheduled: true, // auto start
-//     timezone: "Asia/Kolkata",
-//   }
-// );
-
-// module.exports = cronJob;
-
 const cron = require("node-cron");
 const DrisModel = require("../../models/DriUserModel");
 const fcmTokenModel = require("../../models/fcmTokenModel");
@@ -357,84 +209,64 @@ const parseDueDate = (dueDateStr) => {
 
 /* ---------- CRON ---------- */
 const cronJob = cron.schedule(
-  "52 01 * * *",
+  "26 15 * * *",
   async () => {
     try {
-      console.log("⏰ Cron tick at", new Date().toLocaleString());
+      console.log(" Cron tick at", new Date().toLocaleString());
 
-      /* ---------- PENDING EMIs ---------- */
       const pendingEmis = await DrisModel.find({ status: "pending" });
       if (!pendingEmis.length) return;
 
-      /* ---------- USERS BY PHONE ---------- */
       const phones = [...new Set(pendingEmis.map((e) => String(e.phone)))];
       const users = await User.find({ phone: { $in: phones } });
 
-      /* ---------- PHONE → USER MAP ---------- */
-      const phoneToUser = {};
-      users.forEach((u) => {
-        phoneToUser[String(u.phone)] = u;
-      });
+      const userIdsObj = users.map((u) => u._id);
+      const userIdsStr = users.map((u) => u._id.toString());
 
-      /* ---------- USER IDS ---------- */
-      const userIds = users.map((u) => u._id.toString());
-
-      /* ---------- TOKENS ---------- */
       const tokenDocs = await fcmTokenModel.find({
-        userId: { $in: userIds },
+        $or: [{ userId: { $in: userIdsObj } }, { userId: { $in: userIdsStr } }],
       });
 
-      /* ---------- USER → TOKENS (DEDUP) ---------- */
       const userIdToTokens = {};
-
       tokenDocs.forEach((td) => {
-        if (!td.token) return;
         const id = String(td.userId);
-
-        if (!userIdToTokens[id]) {
-          userIdToTokens[id] = new Set();
-        }
-        userIdToTokens[id].add(td.token);
+        userIdToTokens[id] = userIdToTokens[id] || [];
+        if (td.token) userIdToTokens[id].push(td.token);
       });
 
-      // Set → Array
-      Object.keys(userIdToTokens).forEach((id) => {
-        userIdToTokens[id] = Array.from(userIdToTokens[id]);
-      });
-
-      /* ---------- MESSAGE ---------- */
+      /* ---------- MESSAGE (NO CHANGE) ---------- */
       const reminder = await customeNoticationModel.findOne({});
       const message =
         reminder?.reminder_notification ||
         "Your EMI payment is pending. Pay Now!";
 
-      /* ---------- TODAY ---------- */
+      /* ---------- TODAY (NORMALIZED) ---------- */
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      /* ---------- PER-RUN DEDUP ---------- */
+      /* ---------- PER-RUN USER DEDUP ---------- */
       const notifiedUsers = new Set();
 
-      /* ---------- MAIN LOOP ---------- */
       for (const emi of pendingEmis) {
         if (!emi.dueDate) continue;
 
-        const user = phoneToUser[String(emi.phone)];
+        const user = users.find((u) => String(u.phone) === String(emi.phone));
         if (!user) continue;
 
-        // same cron run me dobara mat bhejo
+        // ❌ same run me already notified
         if (notifiedUsers.has(user._id.toString())) continue;
 
-        /* ---------- DATE WINDOW ---------- */
+        /* ---------- DUE DATE WINDOW ---------- */
         const dueDate = parseDueDate(emi.dueDate);
         dueDate.setHours(0, 0, 0, 0);
 
         const startReminderDate = new Date(dueDate);
         startReminderDate.setDate(dueDate.getDate() - 2);
 
+        // ❌ not in reminder window
         if (today < startReminderDate || today > dueDate) continue;
 
-        // same day already notified
+        // ❌ already notified today
         if (
           user.lastEmiReminderDate &&
           isSameDay(new Date(user.lastEmiReminderDate), today)
@@ -451,9 +283,9 @@ const cronJob = cron.schedule(
           emi.Service_Advance_Total !== ""
         ) {
           subTitle = "Service Advance";
-        } else {
-          continue;
         }
+
+        if (!subTitle) continue;
 
         const title = "Payment Reminder";
         const tokens = userIdToTokens[user._id.toString()] || [];
@@ -462,7 +294,7 @@ const cronJob = cron.schedule(
         if (tokens.length > 0) {
           await sentNotificationToMultipleUsers(
             tokens,
-            message,
+            message, // DB message (unchanged)
             title,
             subTitle
           );
@@ -476,7 +308,7 @@ const cronJob = cron.schedule(
           subTitle
         );
 
-        /* ---------- UPDATE USER ---------- */
+        /* ---------- UPDATE USER (DAILY DEDUP) ---------- */
         await User.updateOne({ _id: user._id }, { lastEmiReminderDate: today });
 
         notifiedUsers.add(user._id.toString());
@@ -490,7 +322,7 @@ const cronJob = cron.schedule(
     }
   },
   {
-    scheduled: true,
+    scheduled: true, // auto start
     timezone: "Asia/Kolkata",
   }
 );
