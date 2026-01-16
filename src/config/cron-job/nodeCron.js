@@ -209,7 +209,7 @@ const parseDueDate = (dueDateStr) => {
 
 /* ---------- CRON ---------- */
 const cronJob = cron.schedule(
-  "0 9 * * *",
+  "10 12 * * *",
   async () => {
     try {
       console.log(" Cron tick at", new Date().toLocaleString());
