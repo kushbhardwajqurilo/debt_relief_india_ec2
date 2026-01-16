@@ -3,9 +3,9 @@ const cluster = require("cluster");
 const os = require("os");
 const http = require("http");
 const app = require("./app");
-const cronJob = require("./src/config/cron-job/nodeCron");
 const connectDB = require("./src/database/DB");
-const dateCron = require("./src/config/cron-job/dateUpdteCron");
+// const cronJob = require("./src/config/cron-job/nodeCron");
+// const dateCron = require("./src/config/cron-job/dateUpdteCron");
 const { Server } = require("socket.io");
 const PORT = process.env.PORT || 5000;
 const numCPUs = os.cpus().length;
@@ -18,8 +18,8 @@ if (cluster.isMaster) {
   connectDB()
     .then(() => {
       console.log("Master connected to DB ✅");
-      cronJob.start();
-      dateCron.start();
+      const cronJob = require("./src/config/cron-job/nodeCron");
+      const dateCron = require("./src/config/cron-job/dateUpdteCron");
 
       // Fork workers after DB is ready
       for (let i = 0; i < numCPUs; i++) {

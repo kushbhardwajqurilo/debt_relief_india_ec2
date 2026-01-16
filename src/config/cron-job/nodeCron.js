@@ -195,134 +195,131 @@ const {
   customeNoticationModel,
 } = require("../../models/contactYourAdvocateModel");
 
-/* ---------- DATE HELPERS ---------- */
+/* ---------- HELPERS ---------- */
 const isSameDay = (d1, d2) =>
   d1.getFullYear() === d2.getFullYear() &&
   d1.getMonth() === d2.getMonth() &&
   d1.getDate() === d2.getDate();
 
-const parseDueDate = (dueDateStr) => {
-  // expects "DD-MM-YYYY"
-  const [day, month, year] = dueDateStr.split("-");
+const parseDueDate = (d) => {
+  if (!d) return null;
+  if (d instanceof Date) return d;
+  const [day, month, year] = d.split("-");
   return new Date(year, month - 1, day);
 };
 
 /* ---------- CRON ---------- */
 const cronJob = cron.schedule(
-  "26 15 * * *",
+  "0 9 * * *",
   async () => {
     try {
-      console.log(" Cron tick at", new Date().toLocaleString());
+      console.log("✅ Cron tick", new Date().toLocaleString());
 
-      const pendingEmis = await DrisModel.find({ status: "pending" });
+      /* ---------- PENDING EMIs ---------- */
+      const pendingEmis = await DrisModel.find({ status: "pending" }).lean();
       if (!pendingEmis.length) return;
 
+      /* ---------- USERS ---------- */
       const phones = [...new Set(pendingEmis.map((e) => String(e.phone)))];
-      const users = await User.find({ phone: { $in: phones } });
+      const users = await User.find({ phone: { $in: phones } }).lean();
+      if (!users.length) return;
 
-      const userIdsObj = users.map((u) => u._id);
-      const userIdsStr = users.map((u) => u._id.toString());
-
+      /* ---------- TOKENS (DEDUPED) ---------- */
+      const userIds = users.map((u) => u._id);
       const tokenDocs = await fcmTokenModel.find({
-        $or: [{ userId: { $in: userIdsObj } }, { userId: { $in: userIdsStr } }],
+        userId: { $in: userIds },
       });
 
       const userIdToTokens = {};
-      tokenDocs.forEach((td) => {
-        const id = String(td.userId);
-        userIdToTokens[id] = userIdToTokens[id] || [];
-        if (td.token) userIdToTokens[id].push(td.token);
+      tokenDocs.forEach((t) => {
+        const uid = String(t.userId);
+        if (!userIdToTokens[uid]) userIdToTokens[uid] = new Set();
+        if (t.token) userIdToTokens[uid].add(t.token);
       });
 
-      /* ---------- MESSAGE (NO CHANGE) ---------- */
-      const reminder = await customeNoticationModel.findOne({});
+      /* ---------- MESSAGE ---------- */
+      const reminder = await customeNoticationModel.findOne({}).lean();
       const message =
         reminder?.reminder_notification ||
         "Your EMI payment is pending. Pay Now!";
 
-      /* ---------- TODAY (NORMALIZED) ---------- */
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      /* ---------- PER-RUN USER DEDUP ---------- */
-      const notifiedUsers = new Set();
+      /* ---------- USER BASED LOOP (🔥 IMPORTANT) ---------- */
+      for (const user of users) {
+        const userEmis = pendingEmis.filter(
+          (e) => String(e.phone) === String(user.phone)
+        );
 
-      for (const emi of pendingEmis) {
-        if (!emi.dueDate) continue;
+        if (!userEmis.length) continue;
 
-        const user = users.find((u) => String(u.phone) === String(emi.phone));
-        if (!user) continue;
+        // ek hi EMI consider karo
+        const emi = userEmis[0];
 
-        // ❌ same run me already notified
-        if (notifiedUsers.has(user._id.toString())) continue;
-
-        /* ---------- DUE DATE WINDOW ---------- */
         const dueDate = parseDueDate(emi.dueDate);
+        if (!dueDate) continue;
+
         dueDate.setHours(0, 0, 0, 0);
 
         const startReminderDate = new Date(dueDate);
         startReminderDate.setDate(dueDate.getDate() - 2);
 
-        // ❌ not in reminder window
+        // ❌ not in window
         if (today < startReminderDate || today > dueDate) continue;
 
-        // ❌ already notified today
-        if (
-          user.lastEmiReminderDate &&
-          isSameDay(new Date(user.lastEmiReminderDate), today)
-        ) {
-          continue;
-        }
+        /* ---------- DB LEVEL DAILY LOCK ---------- */
+        const updateResult = await User.updateOne(
+          {
+            _id: user._id,
+            $or: [
+              { lastEmiReminderDate: { $exists: false } },
+              { lastEmiReminderDate: { $lt: today } },
+            ],
+          },
+          { lastEmiReminderDate: today }
+        );
+
+        // ❌ already notified (multi server safe)
+        if (updateResult.modifiedCount === 0) continue;
 
         /* ---------- SUBTITLE ---------- */
         let subTitle = "";
-        if (emi.Service_Fees && emi.Service_Fees !== "") {
-          subTitle = "Service Fees";
-        } else if (
-          emi.Service_Advance_Total &&
-          emi.Service_Advance_Total !== ""
-        ) {
-          subTitle = "Service Advance";
-        }
-
+        if (emi.Service_Fees) subTitle = "Service Fees";
+        else if (emi.Service_Advance_Total) subTitle = "Service Advance";
         if (!subTitle) continue;
 
         const title = "Payment Reminder";
-        const tokens = userIdToTokens[user._id.toString()] || [];
+        const tokens = [...(userIdToTokens[String(user._id)] || [])];
 
         /* ---------- PUSH ---------- */
-        if (tokens.length > 0) {
+        if (tokens.length) {
           await sentNotificationToMultipleUsers(
             tokens,
-            message, // DB message (unchanged)
+            message,
             title,
             subTitle
           );
         }
 
-        /* ---------- SAVE NOTIFICATION ---------- */
+        /* ---------- SAVE ---------- */
         await insertManyNotification(
-          [user._id.toString()],
+          [String(user._id)],
           title,
           message,
           subTitle
         );
 
-        /* ---------- UPDATE USER (DAILY DEDUP) ---------- */
-        await User.updateOne({ _id: user._id }, { lastEmiReminderDate: today });
-
-        notifiedUsers.add(user._id.toString());
-
         console.log(
-          `🔔 EMI reminder sent to user ${user._id} on ${today.toDateString()}`
+          `🔔 Notification sent to user ${user._id} | tokens=${tokens.length}`
         );
       }
     } catch (err) {
-      console.error("❌ Error in cron job:", err);
+      console.error("❌ Cron error:", err);
     }
   },
   {
-    scheduled: true, // auto start
+    scheduled: true,
     timezone: "Asia/Kolkata",
   }
 );
