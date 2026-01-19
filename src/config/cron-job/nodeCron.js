@@ -249,7 +249,7 @@ const cronJob = cron.schedule(
       /* ---------- USER BASED LOOP (🔥 IMPORTANT) ---------- */
       for (const user of users) {
         const userEmis = pendingEmis.filter(
-          (e) => String(e.phone) === String(user.phone)
+          (e) => String(e.phone) === String(user.phone),
         );
 
         if (!userEmis.length) continue;
@@ -277,7 +277,7 @@ const cronJob = cron.schedule(
               { lastEmiReminderDate: { $lt: today } },
             ],
           },
-          { lastEmiReminderDate: today }
+          { lastEmiReminderDate: today },
         );
 
         // ❌ already notified (multi server safe)
@@ -298,7 +298,7 @@ const cronJob = cron.schedule(
             tokens,
             message,
             title,
-            subTitle
+            subTitle,
           );
         }
 
@@ -307,11 +307,11 @@ const cronJob = cron.schedule(
           [String(user._id)],
           title,
           message,
-          subTitle
+          subTitle,
         );
 
         console.log(
-          `🔔 Notification sent to user ${user._id} | tokens=${tokens.length}`
+          `🔔 Notification sent to user ${user._id} | tokens=${tokens.length}`,
         );
       }
     } catch (err) {
@@ -321,7 +321,7 @@ const cronJob = cron.schedule(
   {
     scheduled: true,
     timezone: "Asia/Kolkata",
-  }
+  },
 );
 
 module.exports = cronJob;

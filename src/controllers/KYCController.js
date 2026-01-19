@@ -273,15 +273,15 @@ exports.ApproveByAdmin = async (req, res) => {
     await sendNotificationToSingleUser(
       expo_token.token,
       msg,
-      "Kyc Aprrove",
-      "kyc",
+      "KYC Aprrove",
+      "KYC",
     );
 
     await createNotification(
       updateKYC.user_id,
-      "kyc Approved",
+      "KYC Approved",
       kyc_message,
-      "kyc",
+      "KYC",
     );
     return res.status(200).json({
       success: true,
