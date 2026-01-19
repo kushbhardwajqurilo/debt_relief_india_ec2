@@ -102,22 +102,6 @@ exports.verifyOTP = async (req, res) => {
           userType: "existing",
         });
       }
-      // let driuser = await DrisModel.findOne({ phone });
-
-      // if (!driuser) {
-      //   kyc = await KYCmodel.create({
-      //     user_id: user._id,
-      //     phone,
-      //     alternatePhone: phone,
-      //     status: "approved",
-      //     name: "dummy",
-      //     lastname: "user",
-      //     email: "dummyuser@exapmple.com",
-      //     gender: "male",
-      //     assign_advocate: "690d98c28b92f5a301990018",
-      //     userType: "existing",
-      //   });
-      // }
 
       if (expoToken) {
         await saveExpoToken(user._id, expoToken);
@@ -125,7 +109,7 @@ exports.verifyOTP = async (req, res) => {
 
       const token = jwt.sign(
         { userId: user._id, role: "user", phone },
-        process.env.SecretKey
+        process.env.SecretKey,
       );
 
       return res.status(200).json({
@@ -176,7 +160,7 @@ exports.verifyOTP = async (req, res) => {
 
     const token = jwt.sign(
       { userId: user._id, role: "user", phone },
-      process.env.SecretKey
+      process.env.SecretKey,
     );
 
     if (user.existingUser) {
@@ -193,6 +177,7 @@ exports.verifyOTP = async (req, res) => {
     });
 
     if (isKycApprove) {
+      console.log("kk", isKycApprove);
       return res.status(200).json({
         success: true,
         message: "Login successful",
@@ -200,11 +185,11 @@ exports.verifyOTP = async (req, res) => {
         status: isKycApprove.status,
       });
     }
-
+    console.log(isKycApprove);
     await sendNotificationToSingleUser(
       expoToken,
       "Login Successfully",
-      "Debt Relief India"
+      "Debt Relief India",
     );
 
     return res.status(200).json({
@@ -602,7 +587,7 @@ exports.getUserProfile = async (req, res) => {
       kycData = await KYCmodel.findOne({
         $or: [{ user_id }, { phone }],
       }).select(
-        "name profile -_id" // only get required fields
+        "name profile -_id", // only get required fields
       );
 
       // ✅ Case 1: existing user → only add name from KYC

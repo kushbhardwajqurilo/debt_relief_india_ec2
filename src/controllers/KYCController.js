@@ -213,7 +213,7 @@ exports.ApproveByAdmin = async (req, res) => {
     const updatedAdvocate = await advocateModel.findByIdAndUpdate(
       advocate_id,
       { $addToSet: { assignUsers: userId.toString() } }, // prevent duplicates
-      { new: true }
+      { new: true },
     );
 
     if (!updatedAdvocate) {
@@ -274,14 +274,14 @@ exports.ApproveByAdmin = async (req, res) => {
       expo_token.token,
       msg,
       "Kyc Aprrove",
-      "kyc"
+      "kyc",
     );
 
     await createNotification(
       updateKYC.user_id,
       "kyc Approved",
       kyc_message,
-      "kyc"
+      "kyc",
     );
     return res.status(200).json({
       success: true,
@@ -448,7 +448,7 @@ exports.CompleteKYC = async (req, res, next) => {
       await sendNotificationToSingleUser(
         expoToken.token,
         upload_message,
-        "kyc"
+        "kyc",
       );
     }
 
@@ -456,7 +456,7 @@ exports.CompleteKYC = async (req, res, next) => {
       expoToken?.userId,
       "Debt Relief India",
       upload_message,
-      "kyc"
+      "kyc",
     );
 
     // 9. Final response
@@ -499,7 +499,7 @@ exports.getPresingedURLs = async (req, res) => {
 
     // Generate presigned URLs for all files
     const urls = await Promise.all(
-      files.map((file) => generatePresignedURL(file.fileName, file.fileType))
+      files.map((file) => generatePresignedURL(file.fileName, file.fileType)),
     );
 
     res.json(urls); // [{uploadURL, fileURL}, ...]

@@ -38,7 +38,7 @@ exports.importUsersFromCSV = async (req, res) => {
     // Step 4: Find existing users in User model
     const existingUsers = await User.find(
       { phone: { $in: phones } },
-      { phone: 1 }
+      { phone: 1 },
     );
 
     const existingUserPhones = existingUsers.map((u) => String(u.phone));
@@ -56,7 +56,7 @@ exports.importUsersFromCSV = async (req, res) => {
     // Step 6: Re-fetch all users to build a phone → _id map
     const allUsers = await User.find(
       { phone: { $in: phones } },
-      { _id: 1, phone: 1 }
+      { _id: 1, phone: 1 },
     );
 
     const userMap = new Map();
@@ -65,7 +65,7 @@ exports.importUsersFromCSV = async (req, res) => {
     // Step 7: Find existing Dris users (avoid duplicates)
     const existingDrisUsers = await DrisModel.find(
       { phone: { $in: phones } },
-      { phone: 1 }
+      { phone: 1 },
     );
     const existingDrisPhones = existingDrisUsers.map((u) => String(u.phone));
 
@@ -93,7 +93,7 @@ exports.importUsersFromCSV = async (req, res) => {
       id: u.id || null, // from CSV
       userId: userMap.get(String(u.phone)) || null, // from User model
       user_id: userMap.get(String(u.phone)) || null, // from User model
-      status: "aprrove",
+      status: "approve",
       userType: "existing",
     }));
     await KYCmodel.insertMany(kycToInsert, { ordered: true });
@@ -139,7 +139,7 @@ exports.getUsersList = async (req, res) => {
           ...user,
           kyc: kycData || null,
         };
-      })
+      }),
     );
 
     return res.status(200).json({ success: true, data: results });
@@ -307,7 +307,7 @@ exports.multipleSoftDelete = async (req, res) => {
     if (Array.isArray(userIds) && userIds.length > 0) {
       users = await DrisModel.updateMany(
         { id: { $in: userIds } },
-        { $set: { isDelete: true, deletedAt: new Date() } }
+        { $set: { isDelete: true, deletedAt: new Date() } },
       );
 
       if (
@@ -317,7 +317,7 @@ exports.multipleSoftDelete = async (req, res) => {
       ) {
         users = await DrisModel.updateMany(
           { phone: { $in: phones } },
-          { $set: { isDelete: true, deletedAt: new Date() } }
+          { $set: { isDelete: true, deletedAt: new Date() } },
         );
       }
 
@@ -385,7 +385,7 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
     const driuser = await DrisModel.findOneAndUpdate(
       query,
       { $set: { id, phone } },
-      { upsert: true, new: true }
+      { upsert: true, new: true },
     );
     const setAdvocate = await advocateModel.findOne({
       _id: new mongoose.Types.ObjectId(req.body.advocate),
@@ -396,7 +396,7 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
     }
     const kycAdvocate = await KYCmodel.findOne({ phone: phone });
     kycAdvocate.assign_advocate = new mongoose.Types.ObjectId(
-      req.body.advocate
+      req.body.advocate,
     );
     await kycAdvocate.save();
     if (driuser?.modifiedCount === 0) {
@@ -456,7 +456,7 @@ exports.permanentDeleteUserData = async (req, res) => {
       advocateModel.updateMany(
         // 9: remove userIds from assignUsers array
         { assignUsers: { $in: userIds } },
-        { $pull: { assignUsers: { $in: userIds } } }
+        { $pull: { assignUsers: { $in: userIds } } },
       ),
       KYCmodel.deleteMany(kycFilter), // 3
     ]);
