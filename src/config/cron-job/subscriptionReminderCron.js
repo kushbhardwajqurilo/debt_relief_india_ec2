@@ -22,7 +22,7 @@ const parseDueDate = (d) => {
 
 /* ---------- CRON ---------- */
 const SubscriptionCronJob = cron.schedule(
-  "0 10 * * *",
+  "0 9 * * *",
   async () => {
     try {
       console.log("✅ Subscription Cron tick:", new Date().toLocaleString());

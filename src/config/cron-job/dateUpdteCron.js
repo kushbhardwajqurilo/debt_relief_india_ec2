@@ -42,14 +42,14 @@ async function monthlySubsciptionDueDateUpdate() {
       await rec.save();
 
       console.log(
-        `Updated dueDate for ${rec._id} → ${rec.dueDate.toISOString()}`
+        `Updated dueDate for ${rec._id} → ${rec.dueDate.toISOString()}`,
       );
     }
   }
 }
 
 const dateCron = cron.schedule(
-  "0 1 * * *",
+  "0 10 * * *",
   async () => {
     try {
       console.log("Date cron running");
@@ -62,7 +62,7 @@ const dateCron = cron.schedule(
   {
     scheduled: true,
     timezone: "Asia/Kolkata",
-  }
+  },
 );
 
 module.exports = dateCron;

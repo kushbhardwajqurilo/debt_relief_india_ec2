@@ -8,6 +8,10 @@ const {
   subscriptionModel,
   paidSubscriptionModel,
 } = require("../../models/monthlySubscriptionModel");
+const fcmTokenModel = require("../../models/fcmTokenModel");
+const {
+  sendNotificationToSingleUser,
+} = require("../../config/expo-push-notification/expoNotification");
 exports.SubscriptionsController = async (req, res, next) => {
   try {
     const validation = {
@@ -16,11 +20,11 @@ exports.SubscriptionsController = async (req, res, next) => {
       duedate: "",
       client: "",
     };
+
     const { admin_id, role } = req;
     const { subscription, gst, client, duedate } = req.body;
-    console.log("body", req.body);
-    const fees = parseInt(subscription);
-    const amount = fees + (fees * gst) / 100;
+
+    // ---------------- VALIDATIONS ----------------
     if (!admin_id || !role) {
       return res.status(400).json({ message: "Invalid admin credentials" });
     }
@@ -29,9 +33,8 @@ exports.SubscriptionsController = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid admin ID format" });
     }
 
-    const admin = await adminModel.findById(admin_id);
-    if (!admin) {
-      return res.status(400).json({ message: "Admin not found" });
+    if (!mongoose.Types.ObjectId.isValid(client)) {
+      return res.status(400).json({ message: "Invalid client ID format" });
     }
 
     for (let val of Object.keys(validation)) {
@@ -43,25 +46,65 @@ exports.SubscriptionsController = async (req, res, next) => {
       ) {
         return res
           .status(400)
-          .json({ success: false, message: `${val} is Require` });
+          .json({ success: false, message: `${val} is required` });
       }
     }
+
+    const admin = await adminModel.findById(admin_id);
+    if (!admin) {
+      return res.status(400).json({ message: "Admin not found" });
+    }
+
+    // ---------------- CALCULATIONS ----------------
+    const fees = parseInt(subscription);
+    const amount = fees + (fees * gst) / 100;
+
     const payload = {
       adminId: admin_id,
-      subscription,
+      subscription: fees,
       userId: new mongoose.Types.ObjectId(client),
       gst,
       amount: Math.round(amount),
       dueDate: duedate,
     };
-    const newSubscription = await subscriptionModel.create(payload);
 
+    // ---------------- CHECK EXISTING SUBSCRIPTION ----------------
+    const existingSubscription = await subscriptionModel.findOne({
+      userId: payload.userId,
+    });
+
+    let result;
+    let message;
+
+    if (existingSubscription) {
+      // UPDATE EXISTING SUBSCRIPTION
+      result = await subscriptionModel.findByIdAndUpdate(
+        existingSubscription._id,
+        payload,
+        { new: true },
+      );
+      message = "Subscription updated successfully";
+    } else {
+      // CREATE NEW SUBSCRIPTION
+      result = await subscriptionModel.create(payload);
+      message = "Subscription created successfully";
+    }
+
+    // const token = await fcmTokenModel.findOne({ userId: payload.userId });
+    // const send = await sendNotificationToSingleUser(
+    //   token.token,
+    //   "Your Monthly SUbscription Has Been Added",
+    //   "Subscription",
+    //   "Monthly Subscription",
+    //   "Monthly Subscription",
+    // );
     return res.status(201).json({
       success: true,
-      message: "Subscription saved successfully.",
-      data: newSubscription,
+      message,
+      data: result,
     });
   } catch (err) {
+    console.error(err);
     return res.status(500).json({
       success: false,
       message: err.message,
@@ -113,7 +156,6 @@ exports.getUsersSubscriptionToAdmin = async (req, res, next) => {
 exports.getUsersSubscriptionToUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    console.log("id", id);
     const subscription = await subscriptionModel
       .find({ userId: id })
       .select("-adminId -__v");
@@ -191,7 +233,7 @@ exports.updateSubscription = async (req, res, next) => {
     const subscriptionResponse = await subscriptionModel.findByIdAndUpdate(
       subscriptionId,
       updatedSubscription,
-      { new: true }
+      { new: true },
     );
     if (!subscriptionResponse) {
       return res.status(400).json({ message: "Subscription not found" });
@@ -221,9 +263,8 @@ exports.deleteSubscription = async (req, res, next) => {
     if (!isUser || isUser.length === 0) {
       return res.status(400).json({ message: "User not found" });
     }
-    const subscription = await subscriptionModel.findByIdAndDelete(
-      subscriptionId
-    );
+    const subscription =
+      await subscriptionModel.findByIdAndDelete(subscriptionId);
     if (!subscription) {
       return res.status(400).json({ message: "Subscription not found" });
     }
@@ -501,7 +542,7 @@ exports.updateDueDates = async (req, res, next) => {
     // optional: save back to DB
     await subscriptionModel.updateOne(
       { userId: user_id },
-      { $set: { dueDate: updateDate } }
+      { $set: { dueDate: updateDate } },
     );
 
     return res.json({
