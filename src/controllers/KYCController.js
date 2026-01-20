@@ -273,7 +273,7 @@ exports.ApproveByAdmin = async (req, res) => {
     await sendNotificationToSingleUser(
       expo_token.token,
       msg,
-      "KYC Aprrove",
+      "KYC Aprroved",
       "KYC",
     );
 
@@ -448,7 +448,7 @@ exports.CompleteKYC = async (req, res, next) => {
       await sendNotificationToSingleUser(
         expoToken.token,
         upload_message,
-        "kyc",
+        "KYC",
       );
     }
 
@@ -456,7 +456,7 @@ exports.CompleteKYC = async (req, res, next) => {
       expoToken?.userId,
       "Debt Relief India",
       upload_message,
-      "kyc",
+      "KYC",
     );
 
     // 9. Final response
