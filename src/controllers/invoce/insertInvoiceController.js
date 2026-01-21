@@ -80,19 +80,19 @@ exports.getInvoicesByMonthYear = async (req, res) => {
 exports.uploadInvoice = async (req, res, next) => {
   try {
     const { phone } = req.body;
-    const haveEmi = await DrisModel.findOne({ phone });
+    // const haveEmi = await DrisModel.findOne({ phone });
 
-    if (!haveEmi || haveEmi.totalEmi === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User hasn't any EMIs" });
-    }
-    if (haveEmi.status == "closed") {
-      return res.status(500).json({
-        success: false,
-        message: "All EMIs are already settled for this user.",
-      });
-    }
+    // if (!haveEmi || haveEmi.totalEmi === 0) {
+    //   return res
+    //     .status(400)
+    //     .json({ success: false, message: "User hasn't any EMIs" });
+    // }
+    // if (haveEmi.status == "closed") {
+    //   return res.status(500).json({
+    //     success: false,
+    //     message: "All EMIs are already settled for this user.",
+    //   });
+    // }
     const file = req.file;
     if (!file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -185,7 +185,7 @@ exports.uploadInvoice = async (req, res, next) => {
     const fileContent = fs.readFileSync(req.file.path);
     const ext = path.extname(req.file.originalname);
     const newKey = `Invoices/${Date.now()}-${Math.round(
-      Math.random() * 1e9
+      Math.random() * 1e9,
     )}${ext}`;
 
     await s3Client.send(
@@ -195,7 +195,7 @@ exports.uploadInvoice = async (req, res, next) => {
         Body: fileContent,
         ContentType: req.file.mimetype,
         ACL: "public-read",
-      })
+      }),
     );
 
     const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
@@ -228,14 +228,14 @@ exports.uploadInvoice = async (req, res, next) => {
       expo_token.token,
       "Debt Relief India",
       invoice_noti,
-      "invoice"
+      "invoice",
     );
 
     await createNotification(
       expo_token.userId,
       "Invoice",
       `${invoice_noti}`,
-      "invoice"
+      "invoice",
     );
 
     return res.status(200).json({
