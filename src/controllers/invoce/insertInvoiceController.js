@@ -77,6 +77,181 @@ exports.getInvoicesByMonthYear = async (req, res) => {
   }
 };
 
+// exports.uploadInvoice = async (req, res, next) => {
+//   try {
+//     const { phone } = req.body;
+//     // const haveEmi = await DrisModel.findOne({ phone });
+
+//     // if (!haveEmi || haveEmi.totalEmi === 0) {
+//     //   return res
+//     //     .status(400)
+//     //     .json({ success: false, message: "User hasn't any EMIs" });
+//     // }
+//     // if (haveEmi.status == "closed") {
+//     //   return res.status(500).json({
+//     //     success: false,
+//     //     message: "All EMIs are already settled for this user.",
+//     //   });
+//     // }
+//     const file = req.file;
+//     if (!file) {
+//       return res.status(400).json({ message: "No file uploaded" });
+//     }
+//     if (!phone) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Phone number required" });
+//     }
+
+//     const filePath = file.path;
+
+//     // Parse PDF
+//     const buffer = fs.readFileSync(filePath);
+//     const pdfData = await pdfParse(buffer);
+//     const text = pdfData?.text || "";
+
+//     if (!text) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Could not extract text from PDF (empty content)",
+//       });
+//     }
+
+//     // ✅ Safe Helper function
+//     const extractField = (text, label, pattern = /(.+)/) => {
+//       if (!text) return "";
+//       try {
+//         const regex = new RegExp(`${label}\\s*${pattern.source}`, "i");
+//         const match = text.match(regex);
+//         return match && match[1] ? match[1].trim() : "";
+//       } catch (e) {
+//         console.log(`extractField failed for ${label}:`, e.message);
+//         return "";
+//       }
+//     };
+
+//     // 🔹 Robust Service Extraction (handles compressed text)
+//     let serviceName = "";
+
+//     try {
+//       const serviceMatch = text.match(
+//         /1\s*([A-Za-z ()]+?)\s*\(([^)]+)\)\s*9971/i,
+//       );
+
+//       if (serviceMatch) {
+//         serviceName = `${serviceMatch[1].trim()} (${serviceMatch[2].trim()})`;
+//       }
+//     } catch (e) {
+//       console.log("Service extraction failed:", e.message);
+//     }
+
+//     if (!serviceName) {
+//       serviceName = "Debt Relief Service";
+//     }
+
+//     // Extract other fields dynamically
+//     const invoiceData = {
+//       invoiceDate: extractField(text, "Invoice Date", /([\d\/]+)/),
+//       invoiceNumber: extractField(text, "Invoice No.", /#?([\w\/-]+)/),
+//       serviceName: serviceName,
+//       totalAmount: extractField(text, "Total Amount", /₹?\s*([\d,]+)/),
+//       taxableAmount: extractField(text, "Taxable Amount", /₹?\s*([\d,]+)/),
+//       tax: extractField(text, "IGST|CGST|SGST|Tax", /₹?\s*([\d,]+)/),
+//       billTo: extractField(text, "Bill To", /(.+)/),
+//       gstin: extractField(text, "GSTIN", /([\w\d]+)/),
+//       placeOfSupply: extractField(text, "Place of Supply", /(.+)/),
+//       url: "",
+//       phone,
+//     };
+
+//     console.log("🧾 Extracted Invoice Data:", invoiceData);
+
+//     // Validate required fields
+//     if (
+//       !invoiceData.invoiceDate ||
+//       !invoiceData.totalAmount ||
+//       !invoiceData.serviceName
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Failed to extract required fields from invoice",
+//       });
+//     }
+
+//     const user = await UserModel.findOne({ phone });
+
+//     const expo_token = await fcmTokenModel.findOne({ userId: user._id });
+
+//     // Upload to S3
+//     const fileContent = fs.readFileSync(req.file.path);
+//     const ext = path.extname(req.file.originalname);
+//     const newKey = `Invoices/${Date.now()}-${Math.round(
+//       Math.random() * 1e9,
+//     )}${ext}`;
+
+//     await s3Client.send(
+//       new PutObjectCommand({
+//         Bucket: process.env.S3_BUCKET_NAME,
+//         Key: newKey,
+//         Body: fileContent,
+//         ContentType: req.file.mimetype,
+//         ACL: "public-read",
+//       }),
+//     );
+
+//     const s3Url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${newKey}`;
+//     invoiceData["url"] = s3Url;
+
+//     fs.unlinkSync(req.file.path);
+
+//     // Save to DB
+//     const result = await InvoiceModel.create(invoiceData);
+//     if (!result) {
+//       return res.status(500).json({ message: "Failed to save invoice data" });
+//     }
+
+//     // Update DrisModel
+//     // const driuser = await DrisModel.findOneAndUpdate(
+//     //   { phone },
+//     //   {
+//     //     $inc: { emiPay: 1 },
+//     //     $set: { status: "pending", invoiceInsert: true },
+//     //   },
+//     //   { new: true, upsert: true }
+//     // );
+
+//     const custom_notification = await customeNoticationModel.find({});
+//     const invoice_noti =
+//       custom_notification?.[0]?.invoice ||
+//       `Dear ${driuser.name} Your Invoice Is Ready...`;
+
+//     await sendNotificationToSingleUser(
+//       expo_token.token,
+//       "Debt Relief India",
+//       invoice_noti,
+//       "invoice",
+//     );
+
+//     await createNotification(
+//       expo_token.userId,
+//       "Invoice",
+//       `${invoice_noti}`,
+//       "invoice",
+//     );
+
+//     return res.status(200).json({
+//       message: "Invoice uploaded successfully",
+//       success: true,
+//     });
+//   } catch (err) {
+//     console.log("❌ Error in uploadInvoice:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error: " + err.message,
+//     });
+//   }
+// };
+
 exports.uploadInvoice = async (req, res, next) => {
   try {
     const { phone } = req.body;
@@ -130,23 +305,26 @@ exports.uploadInvoice = async (req, res, next) => {
       }
     };
 
-    // 🔹 Robust Service Extraction (handles compressed text)
-    let serviceName = "";
+    // 🔹 Robust Service Extraction (handles compressed text and multiple services)
+    let services = [];
+
     try {
-      // Example matches:
-      // "1Settlement Advance9971..."  → Settlement Advance
-      // "1Service Fees9971..."        → Service Fees
-      const serviceMatch = text.match(/1\s*([A-Za-z ]+?)\s*9971/i);
-      if (serviceMatch && serviceMatch[1]) {
-        serviceName = serviceMatch[1].trim();
+      const serviceRegex =
+        /(\d+)\s*([A-Za-z\s()]+?)(?:\s*\(([^)]+)\))?\s*9971/gi;
+      let match;
+      while ((match = serviceRegex.exec(text)) !== null) {
+        let service = match[2].trim();
+        if (match[3]) {
+          service += ` (${match[3].trim()})`;
+        }
+        services.push(service);
       }
     } catch (e) {
       console.log("Service extraction failed:", e.message);
     }
 
-    if (!serviceName) {
-      serviceName = "N/A"; // fallback
-    }
+    let serviceName =
+      services.length > 0 ? services.join(", ") : "Debt Relief Service";
 
     // Extract other fields dynamically
     const invoiceData = {
@@ -228,14 +406,14 @@ exports.uploadInvoice = async (req, res, next) => {
       expo_token.token,
       "Debt Relief India",
       invoice_noti,
-      "invoice",
+      "Invoice",
     );
 
     await createNotification(
       expo_token.userId,
       "Invoice",
       `${invoice_noti}`,
-      "invoice",
+      "Invoice",
     );
 
     return res.status(200).json({
