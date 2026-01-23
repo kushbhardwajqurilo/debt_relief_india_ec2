@@ -37,7 +37,7 @@ exports.sendOTP = async (req, res) => {
 
     //     const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your OTP for Login is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690
     // &format=JSON`;
-    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
+    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is <#>${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
     const response = await axios.get(apiUrl);
     if (response.data.status === "success") {
       return res.status(200).json({
