@@ -9,7 +9,7 @@ async function sendNotificationToSingleUser(
   message,
   title = "Notification",
   type = "",
-  subtitle = ""
+  subtitle = "",
 ) {
   if (!Expo.isExpoPushToken(token)) {
     console.warn("Invalid Expo token:", token);
@@ -20,8 +20,8 @@ async function sendNotificationToSingleUser(
       to: token,
       sound: "default",
       title,
-      body: message,
-      subtitle,
+      body: subtitle + "\n" + message,
+      // subtitle,
       data: {
         image:
           "https://res.cloudinary.com/dvlqwoxvj/image/upload/v1756900537/favicon_ybguu8.png",
@@ -51,7 +51,7 @@ async function sentNotificationToMultipleUsers(
   tokens,
   message,
   title = "Notification",
-  type = ""
+  type = "",
 ) {
   if (!tokens || !tokens.length) {
     return { success: false, message: "No tokens provided" };
