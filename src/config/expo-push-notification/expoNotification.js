@@ -21,7 +21,7 @@ async function sendNotificationToSingleUser(
       to: token,
       sound: "default",
       title,
-      body: subtitle + "\n" + message,
+      body: subtitle ? subtitle + "\n" + message : message,
       // subtitle,
       data: {
         image:
@@ -72,7 +72,7 @@ async function sentNotificationToMultipleUsers(
     sound: "default",
     title,
     subtitle: type,
-    body: subtitle + "\n" + message,
+    body: subtitle ? subtitle + "\n" + message : message,
     data: {
       image:
         "https://res.cloudinary.com/dvlqwoxvj/image/upload/v1756900537/favicon_ybguu8.png",
