@@ -298,6 +298,7 @@ const cronJob = cron.schedule(
             tokens,
             message,
             title,
+            "",
             subTitle,
           );
         }

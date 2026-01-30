@@ -134,7 +134,7 @@ exports.ManualEmiUpload = async (req, res, next) => {
     const expo_token = await fcmTokenModel.findOne({ userId: kyc?.user_id });
     await sendNotificationToSingleUser(
       expo_token.token,
-      `Dear ${kyc.name}, your total EMI has been created, please check it.`
+      `Dear ${kyc.name}, your total EMI has been created, please check it.`,
     );
     return res.status(201).json({
       success: true,
@@ -192,7 +192,7 @@ exports.marksAsPaid = async (req, res) => {
     const formatDDMMYYYY = (date) => {
       if (date) {
         return `${String(date.getDate()).padStart(2, "0")}-${String(
-          date.getMonth() + 1
+          date.getMonth() + 1,
         ).padStart(2, "0")}-${date.getFullYear()}`;
       } else {
         return res.status(400).json({ success: false, message: "date issue" });
@@ -201,7 +201,7 @@ exports.marksAsPaid = async (req, res) => {
 
     const formatDDMMYYYY_slash = (date) => {
       return `${String(date.getDate()).padStart(2, "0")}/${String(
-        date.getMonth() + 1
+        date.getMonth() + 1,
       ).padStart(2, "0")}/${date.getFullYear()}`;
     };
 
@@ -280,7 +280,7 @@ exports.createTestEmi = async (req, res) => {
     // Clean CSV
     const cleanData = jsonArray.filter((row) => {
       const isEmptyRow = Object.values(row).every(
-        (value) => !value || value.toString().trim() === ""
+        (value) => !value || value.toString().trim() === "",
       );
       if (isEmptyRow) return false;
 
@@ -381,7 +381,7 @@ exports.createTestEmi = async (req, res) => {
 
     // Find matched client by phone
     let matchedClient = Object.values(grouped).find(
-      (client) => client.phone === phone
+      (client) => client.phone === phone,
     );
 
     if (!matchedClient) {
@@ -394,12 +394,12 @@ exports.createTestEmi = async (req, res) => {
     // Calculate totals
     const creditTotal = matchedClient.creditCards.reduce(
       (sum, card) => sum + (parseFloat(card.total) || 0),
-      0
+      0,
     );
 
     const plTotal = matchedClient.personalLoans.reduce(
       (sum, loan) => sum + (parseFloat(loan.total) || 0),
-      0
+      0,
     );
 
     const userData = {
@@ -460,13 +460,13 @@ exports.createTestEmi = async (req, res) => {
         token.token,
         emiMsg,
         "Debt Relief India",
-        "emi"
+        "emi",
       );
       await createNotification(
         token.userId,
         "Debt Relief India",
         emiMsg,
-        "emi"
+        "emi",
       );
     }
 
@@ -492,7 +492,7 @@ exports.BultEmiInsert = async (req, res) => {
     // ✅ Clean CSV data
     const cleanData = jsonArray.filter((row) => {
       const isEmptyRow = Object.values(row).every(
-        (value) => !value || value.toString().trim() === ""
+        (value) => !value || value.toString().trim() === "",
       );
       if (isEmptyRow) return false;
 
@@ -609,11 +609,11 @@ exports.BultEmiInsert = async (req, res) => {
 
       const creditTotal = client.creditCards.reduce(
         (sum, card) => sum + (parseFloat(card.total) || 0),
-        0
+        0,
       );
       const plTotal = client.personalLoans.reduce(
         (sum, loan) => sum + (parseFloat(loan.total) || 0),
-        0
+        0,
       );
 
       const userData = {
@@ -656,13 +656,13 @@ exports.BultEmiInsert = async (req, res) => {
               token.token,
               emiMsg,
               "Debt Relief India",
-              "emi"
+              "emi",
             );
             await createNotification(
               token.userId,
               "Debt Relief India",
               emiMsg,
-              "emi"
+              "emi",
             );
           } else {
             console.log("⚠️ No valid token for", client.phone);
@@ -671,7 +671,7 @@ exports.BultEmiInsert = async (req, res) => {
           console.log(
             "❌ Error sending notification for",
             client.phone,
-            err.message
+            err.message,
           );
         }
       });
