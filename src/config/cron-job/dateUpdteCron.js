@@ -2,45 +2,27 @@ const cron = require("node-cron");
 const DrisModel = require("../../models/DriUserModel");
 const { subscriptionModel } = require("../../models/monthlySubscriptionModel");
 async function updateEMIDueDates() {
-  try {
-    const getDates = await DrisModel.find({});
-    const today = new Date();
-    let updatedCount = 0;
-    let errorCount = 0;
+  const getDates = await DrisModel.find({});
+  const today = new Date();
+  for (let rec of getDates) {
+    if (!rec.dueDate) continue;
 
-    for (let rec of getDates) {
-      try {
-        if (!rec.dueDate) continue;
+    let [day, month, year] = rec.dueDate.split("-").map(Number);
+    let dueDate = new Date(year, month - 1, day);
+    dueDate.setHours(0, 0, 0, 0);
 
-        let [day, month, year] = rec.dueDate.split("-").map(Number);
-        let dueDate = new Date(year, month - 1, day);
-        dueDate.setHours(0, 0, 0, 0);
+    if (today >= dueDate) {
+      // add 1 month
+      dueDate.setMonth(dueDate.getMonth() + 1);
 
-        if (today >= dueDate) {
-          // add 1 month
-          dueDate.setMonth(dueDate.getMonth() + 1);
+      // format back to dd-mm-yyyy
+      let newDay = String(dueDate.getDate()).padStart(2, "0");
+      let newMonth = String(dueDate.getMonth() + 1).padStart(2, "0");
+      let newYear = dueDate.getFullYear();
 
-          // format back to dd-mm-yyyy
-          let newDay = String(dueDate.getDate()).padStart(2, "0");
-          let newMonth = String(dueDate.getMonth() + 1).padStart(2, "0");
-          let newYear = dueDate.getFullYear();
-
-          rec.dueDate = `${newDay}-${newMonth}-${newYear}`;
-          await rec.save();
-          updatedCount++;
-        }
-      } catch (error) {
-        errorCount++;
-        console.error(`❌ Error updating EMI due date for record ${rec._id}:`, error.message);
-      }
+      rec.dueDate = `${newDay}-${newMonth}-${newYear}`;
+      await rec.save();
     }
-
-    if (updatedCount > 0 || errorCount > 0) {
-      console.log(`📊 EMI due date update: ${updatedCount} updated, ${errorCount} errors`);
-    }
-  } catch (error) {
-    console.error("❌ Error in updateEMIDueDates function:", error.message);
-    throw error;
   }
 }
 
@@ -53,7 +35,7 @@ async function monthlySubsciptionDueDateUpdate() {
   // This prevents automatic deletion/loss of unpaid subscription records
   const allSubscriptions = await subscriptionModel.find({
     dueDate: { $exists: true, $ne: null },
-    isPaid: false, // Only process paid subscriptions
+    isPaid: true, // Only process paid subscriptions
   });
 
   if (!allSubscriptions.length) {
@@ -104,16 +86,14 @@ async function monthlySubsciptionDueDateUpdate() {
 }
 
 const dateCron = cron.schedule(
-  "0 9 * * *",
+  "08 11 * * *",
   async () => {
     try {
-      console.log("🔄 Date cron running at", new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }));
+      console.log("Date cron running");
       await updateEMIDueDates();
       await monthlySubsciptionDueDateUpdate();
-      console.log("✅ Date cron completed successfully");
     } catch (err) {
-      console.error("❌ Error in updating dueDates:", err.message);
-      console.error("Full error:", err);
+      console.log("erro in updating dueDates", err);
     }
   },
   {
