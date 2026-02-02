@@ -126,7 +126,7 @@ const SubscriptionCronJob = cron.schedule(
         const title = "Payment Reminder";
         const subTitle = "Monthly Subscription";
 
-        const finalMessage = `${baseMessage} (Due ${reminderType})`;
+        const finalMessage = `${baseMessage}`;
 
         if (tokens.length) {
           await sentNotificationToMultipleUsers(
