@@ -58,11 +58,11 @@ async function monthlySubsciptionDueDateUpdate() {
         // Add 1 month to due date for next billing cycle
         const nextDueDate = new Date(dueDate);
         nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-        
+
         // Update subscription: set new due date and mark as unpaid for next month
         rec.dueDate = nextDueDate;
         rec.isPaid = false; // Mark next month as unpaid
-        
+
         await rec.save();
         updatedCount++;
 
@@ -86,7 +86,7 @@ async function monthlySubsciptionDueDateUpdate() {
 }
 
 const dateCron = cron.schedule(
-  "08 11 * * *",
+  "0 9 * * *",
   async () => {
     try {
       console.log("Date cron running");
