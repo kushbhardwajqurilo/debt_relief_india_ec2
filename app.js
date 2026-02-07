@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
+const morgan = require("morgan");
 const helmet = require("helmet");
 const compression = require("compression");
 const path = require("path");
+const fs = require("fs");
 const zlib = require("zlib");
 
 // Routes
@@ -40,10 +42,30 @@ app.use(
   helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
-  })
+  }),
 );
 app.use(helmet.hidePoweredBy());
+// log file path
+const logDirectory = path.join(__dirname, "logs");
 
+// ensure folder exists
+if (!fs.existsSync(logDirectory)) {
+  fs.mkdirSync(logDirectory);
+}
+
+// write stream
+const accessLogStream = fs.createWriteStream(
+  path.join(logDirectory, "access.log"),
+  { flags: "a" },
+);
+
+// morgan middleware
+app.use(
+  morgan(
+    ":date[iso] :method :url :status :response-time ms - :res[content-length] - :remote-addr",
+    { stream: accessLogStream },
+  ),
+);
 // Compression with Gzip/Brotli
 app.use(
   compression({
@@ -53,7 +75,7 @@ app.use(
       if (req.headers["x-no-compression"]) return false;
       return compression.filter(req, res);
     },
-  })
+  }),
 );
 // Body parsers
 app.use(express.json({ limit: "10mb" }));
@@ -64,7 +86,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 // ----------------------------
 app.use(
   "/public/uploads/banner",
-  express.static(path.resolve("public/uploads/banner"))
+  express.static(path.resolve("public/uploads/banner")),
 );
 
 // ----------------------------
