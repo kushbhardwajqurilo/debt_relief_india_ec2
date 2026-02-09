@@ -421,7 +421,7 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
 exports.permanentDeleteUserData = async (req, res) => {
   try {
     const { userIds = [], phones = [] } = req.body;
-
+    console.log(req.body);
     if (
       (!Array.isArray(userIds) || userIds.length === 0) &&
       (!Array.isArray(phones) || phones.length === 0)
@@ -432,10 +432,15 @@ exports.permanentDeleteUserData = async (req, res) => {
       });
     }
 
-    const userIdFilter = userIds.length ? { userId: { $in: userIds } } : {};
+    let userIdFilter = userIds.length ? { userId: { $in: userIds } } : {};
     const user_idFilter = userIds.length ? { user_id: { $in: userIds } } : {};
-    const phoneFilter = phones.length ? { phone: { $in: phones } } : {};
-
+    let phoneFilter = phones.length ? { phone: { $in: phones } } : {};
+    if (req.body?.type === "kyc") {
+      phoneFilter = phones.length ? { phone: { $in: phones } } : {};
+      const userIds = await User.find(phoneFilter);
+      const ids = userIds.map((id) => id?._id);
+      userIdFilter = ids.length ? { userId: { $in: ids } } : {};
+    }
     const kycFilter = {
       $or: [
         ...(phones.length ? [{ phone: { $in: phones } }] : []),
@@ -443,7 +448,6 @@ exports.permanentDeleteUserData = async (req, res) => {
         ...(userIds.length ? [{ user_id: { $in: userIds } }] : []),
       ],
     };
-
     // 💥 Promise.all: Run all deletions in parallel
     const results = await Promise.all([
       DrisModel.deleteMany(phoneFilter), // 1

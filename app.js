@@ -46,26 +46,26 @@ app.use(
 );
 app.use(helmet.hidePoweredBy());
 // log file path
-const logDirectory = path.join(__dirname, "logs");
+// const logDirectory = path.join(__dirname, "logs");
 
-// ensure folder exists
-if (!fs.existsSync(logDirectory)) {
-  fs.mkdirSync(logDirectory);
-}
+// // ensure folder exists
+// if (!fs.existsSync(logDirectory)) {
+//   fs.mkdirSync(logDirectory);
+// }
 
-// write stream
-const accessLogStream = fs.createWriteStream(
-  path.join(logDirectory, "access.log"),
-  { flags: "a" },
-);
+// // write stream
+// const accessLogStream = fs.createWriteStream(
+//   path.join(logDirectory, "access.log"),
+//   { flags: "a" },
+// );
 
 // morgan middleware
-app.use(
-  morgan(
-    ":date[iso] :method :url :status :response-time ms - :res[content-length] - :remote-addr",
-    { stream: accessLogStream },
-  ),
-);
+// app.use(
+//   morgan(
+//     ":date[iso] :method :url :status :response-time ms - :res[content-length] - :remote-addr",
+//     { stream: accessLogStream },
+//   ),
+// );
 // Compression with Gzip/Brotli
 app.use(
   compression({

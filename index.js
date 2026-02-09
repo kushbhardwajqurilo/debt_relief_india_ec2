@@ -20,7 +20,7 @@ if (cluster.isMaster) {
       console.log("Master connected to DB ✅");
       const SubscriptionCronJob = require("./src/config/cron-job/subscriptionReminderCron");
       const cronJob = require("./src/config/cron-job/nodeCron");
-      const dateCron = require("./src/config/cron-job/dateUpdteCron");
+      // const dateCron = require("./src/config/cron-job/dateUpdteCron");
 
       // Fork workers after DB is ready
       for (let i = 0; i < numCPUs; i++) {
