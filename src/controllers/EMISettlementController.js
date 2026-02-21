@@ -239,16 +239,33 @@ exports.marksAsPaid = async (req, res) => {
 
     if (user.totalEmi === user.emiPay) {
       user.status = "closed";
+
       const query = {
         $or: [
           { user_id: new mongoose.Types.ObjectId(user_id) },
-          { phone: `${phone}` },
-          { alternatePhone: `${phone}` },
+          { phone: phone },
+          { alternatePhone: phone },
         ],
       };
-      const paidModal = await padiDialBoxModel.findOne(query);
-      paidModal.status = true;
-      await paidModal.save();
+
+      const update = {
+        $set: {
+          status: true,
+          user_id: new mongoose.Types.ObjectId(user_id),
+          phone: phone,
+          alternatePhone: phone,
+        },
+      };
+
+      // upsert = create if not exists
+      const paidModal = await padiDialBoxModel.findOneAndUpdate(query, update, {
+        new: true,
+        upsert: true,
+        runValidators: true,
+      });
+
+      // console.log("paidModal", paidModal);
+
       await user.save();
     }
 
