@@ -53,7 +53,6 @@ exports.sendOTP = async (req, res) => {
     // const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=${encodeURIComponent(message)}&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
 
     const response = await axios.get(apiUrl);
-    console.log("reso", response);
     if (response.data.status === "success") {
       return res.status(200).json({
         success: true,

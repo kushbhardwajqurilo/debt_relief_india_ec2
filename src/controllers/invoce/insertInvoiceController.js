@@ -341,8 +341,6 @@ exports.uploadInvoice = async (req, res, next) => {
       phone,
     };
 
-    console.log("🧾 Extracted Invoice Data:", invoiceData);
-
     // Validate required fields
     if (
       !invoiceData.invoiceDate ||
@@ -401,20 +399,18 @@ exports.uploadInvoice = async (req, res, next) => {
     const invoice_noti =
       custom_notification?.[0]?.invoice ||
       `Dear ${driuser.name} Your Invoice Is Ready...`;
+    const token = expo_token?.token;
 
-    await sendNotificationToSingleUser(
-      expo_token.token,
-      "Debt Relief India",
-      invoice_noti,
-      "Invoice",
-    );
+    if (expo_token?.token) {
+      await sendNotificationToSingleUser(
+        token,
+        "Debt Relief India",
+        invoice_noti,
+        "Invoice",
+      );
+    }
 
-    await createNotification(
-      expo_token.userId,
-      "Invoice",
-      `${invoice_noti}`,
-      "Invoice",
-    );
+    await createNotification(user._id, "Invoice", `${invoice_noti}`, "Invoice");
 
     return res.status(200).json({
       message: "Invoice uploaded successfully",
