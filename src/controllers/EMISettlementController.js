@@ -964,3 +964,77 @@ exports.addSingleLoanToClient = async (req, res, next) => {
     });
   }
 };
+
+// REVERSE MARK  AS PAID
+exports.undoMarkAsPaid = async (req, res) => {
+  try {
+    const { phone, user_id } = req.body;
+
+    if (!phone)
+      return res
+        .status(400)
+        .json({ success: false, message: "Phone required" });
+
+    const user = await DrisModel.findOne({ phone });
+    if (!user)
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+
+    if (user.emiPay <= 0)
+      return res
+        .status(400)
+        .json({ success: false, message: "Nothing to undo" });
+
+    // 🔹 Date Helpers
+    const parseDDMMYYYY = (dateStr) => {
+      const [day, month, year] = dateStr?.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const formatDDMMYYYY = (date) => {
+      return `${String(date.getDate()).padStart(2, "0")}-${String(
+        date.getMonth() + 1,
+      ).padStart(2, "0")}-${date.getFullYear()}`;
+    };
+
+    const addMonth = (date, months = 1) => {
+      const d = new Date(date);
+      const day = d.getDate();
+      d.setMonth(d.getMonth() + months);
+      if (d.getDate() !== day) d.setDate(0);
+      return d;
+    };
+
+    // 🔻 Decrease Due Date
+    const currentDate = parseDDMMYYYY(user.dueDate);
+    const previousDueDate = addMonth(currentDate, -1);
+
+    user.dueDate = formatDDMMYYYY(previousDueDate);
+    user.emiPay = user.emiPay - 1;
+
+    // 🗑 Delete Last PaidService Entry (latest EMI)
+    await PaidService.findOneAndDelete({
+      userId: user_id,
+      emiNo: user.emiPay + 1, // because we already reduced
+    });
+
+    // 🔓 If closed → reopen
+    if (user.status === "closed") {
+      user.status = "pending";
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Undo Successful (Due Date -1 Month & Last EMI Removed)",
+    });
+  } catch (err) {
+    console.error("Undo Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};

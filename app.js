@@ -45,28 +45,6 @@ app.use(
   }),
 );
 app.use(helmet.hidePoweredBy());
-// log file path
-// const logDirectory = path.join(__dirname, "logs");
-
-// // ensure folder exists
-// if (!fs.existsSync(logDirectory)) {
-//   fs.mkdirSync(logDirectory);
-// }
-
-// // write stream
-// const accessLogStream = fs.createWriteStream(
-//   path.join(logDirectory, "access.log"),
-//   { flags: "a" },
-// );
-
-// morgan middleware
-// app.use(
-//   morgan(
-//     ":date[iso] :method :url :status :response-time ms - :res[content-length] - :remote-addr",
-//     { stream: accessLogStream },
-//   ),
-// );
-// Compression with Gzip/Brotli
 app.use(
   compression({
     level: zlib.constants.Z_BEST_COMPRESSION,
@@ -94,39 +72,6 @@ app.use(
 // ----------------------------
 const baseURI = "/api/v1/";
 
-// app.post("/upload", s3Uploader.single("file"), (req, res) => {
-//   try {
-//     if (!req.file) {
-//       console.log("file", req.file);
-//       return res.status(400).json({ error: "File upload failed" });
-//     }
-//     res.status(200).json({
-//       message: "File uploaded successfully",
-//       fileUrl: req.file.location,
-//     });
-//   } catch (error) {
-//     return res.json(error);
-// //   }
-// // });
-// app.post("/upload", s3Uploader.array("file"), (req, res) => {
-//   try {
-//     if (!req.files || req.files.length === 0) {
-//       console.log("files", req.files);
-//       return res.status(400).json({ error: "File upload failed" });
-//     }
-
-//     const fileUrls = req.files.map((file) => file.location);
-
-//     res.status(200).json({
-//       message: "Files uploaded successfully",
-//       fileUrls: fileUrls,
-//     });
-//   } catch (error) {
-//     console.error("Upload error:", error);
-//     res.status(500).json({ error: "Internal server error" });
-//   }
-// });
-
 app.use(`${baseURI}admin`, adminRouter);
 app.use(`${baseURI}user`, userRouter);
 app.use(`${baseURI}banner`, bannerRouter);
@@ -149,16 +94,8 @@ app.use(`${baseURI}notification`, notificationRouter);
 // ----------------------------
 // 404 Handler
 // ----------------------------
-
-// app.post("/not", async (req, res) => {
-//   await sendNotificationToSingleUser(req.body.token, "hello", "ssfs", "ssss");
-// });
-
 app.get("/", (req, res) => {
   return res.render("index");
-});
-app.get("/hello", async (req, res, next) => {
-  res.json({ name: "devesh" });
 });
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: "API endpoint not found" });

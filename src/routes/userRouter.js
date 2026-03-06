@@ -14,6 +14,8 @@ const {
   getAllSavingToUser,
   updateUserProfilePicture,
   userControllerForAdmin,
+  deleteUserSavings,
+  updateUserSavings,
 } = require("../controllers/userControll");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const s3Uploader = require("../middlewares/AWS-S3/S3_UploadMiddleware");
@@ -34,12 +36,14 @@ userRouter.get("/get-user", UserAuthMiddleWare, userController);
 userRouter.get("/get-user-admin", UserAuthMiddleWare, userController);
 userRouter.post("/get-user-saving", AuthMiddleWare, userControllerForAdmin);
 userRouter.get("/get-savings", UserAuthMiddleWare, getAllSavingToUser);
+userRouter.delete("/delete-savings", UserAuthMiddleWare, deleteUserSavings);
+userRouter.put("/update-savings", UserAuthMiddleWare, updateUserSavings);
 userRouter.patch(
   "/update-profile",
   UserAuthMiddleWare,
   roleAuthenticaton("user"),
   s3Uploader.single("file"),
-  updateUserProfilePicture
+  updateUserProfilePicture,
 );
 userRouter.post("/notification", sendNotificationToSingleUser);
 

@@ -132,7 +132,7 @@ exports.uploadProfileImage = async (req, res) => {
         image: file.location,
         public_id: file.key,
       },
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json({
@@ -162,7 +162,7 @@ exports.addBarcodeWithUpi = async (req, res, next) => {
     }
     const addBarcodeWithUpi = await adminModel.updateOne(
       { _id: admin_id },
-      { barcode: imagePath, upi }
+      { barcode: imagePath, upi },
     );
     if (addBarcodeWithUpi.modifiedCount === 0) {
       return res.status(404).json({
@@ -270,7 +270,6 @@ exports.updateAdminDetails = async (req, res) => {
 exports.requestOtp = async (req, res, next) => {
   try {
     const { admin_id } = req;
-    console.log("id", admin_id);
     if (!admin_id) {
       return res.status(401).json({
         success: false,
@@ -285,10 +284,6 @@ exports.requestOtp = async (req, res, next) => {
       });
     }
     const otp = Math.floor(1000 + Math.random() * 9000);
-    otpStores[phone] = {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    };
     const admin = await adminModel.findById(admin_id);
     if (admin) {
       if (!admin.phone === phone) {
@@ -298,11 +293,25 @@ exports.requestOtp = async (req, res, next) => {
           message: "phone Invaid",
         });
       }
-      return res.status(200).json({
-        success: true,
-        message: "otp send.",
-        otp,
-      });
+      admin.otp = otp;
+      admin.otpExpire = Date.now() + 5 * 60 * 1000;
+      await admin.save();
+      const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
+
+      const response = await axios.get(apiUrl);
+      if (response.data.status === "success") {
+        return res.status(200).json({
+          success: true,
+          message: "OTP sent successfully",
+          otp: "",
+        });
+      } else {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to send OTP",
+          error: response.data,
+        });
+      }
     }
     return res.status(404).json({
       success: false,
@@ -321,7 +330,6 @@ exports.requestOtp = async (req, res, next) => {
 exports.verifyOtpForAdmin = async (req, res) => {
   try {
     const { phone, otp } = req.body;
-
     if (!phone) {
       return res
         .status(400)
@@ -336,8 +344,8 @@ exports.verifyOtpForAdmin = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid Admin Phone Numbber" });
     }
-    const record = otpStores[phone];
-    if (!record || record.expiresAt < Date.now()) {
+    const record = admin;
+    if (!record || record.otpExpire < Date.now()) {
       return res
         .status(400)
         .json({ success: false, message: "OTP expired or not found" });
@@ -348,11 +356,13 @@ exports.verifyOtpForAdmin = async (req, res) => {
     if (storedOtp !== submittedOtp) {
       return res.status(401).json({ success: false, message: "Invalid OTP" });
     }
-
+    admin.otp = null;
+    admin.otpExpire = null;
+    await admin.save();
     const verifyToken = jwt.sign(
       { key: admin._id },
       process.env.ChangePasswordKey,
-      { expiresIn: "5m" }
+      { expiresIn: "5m" },
     );
     return res
       .status(200)
@@ -673,7 +683,7 @@ exports.callNowSetup = async (req, res) => {
     const setupMessage = await contatYourAdvocateModel.findOneAndUpdate(
       {},
       { $set: { message } },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     if (!setupMessage) {
@@ -741,8 +751,8 @@ exports.addDialBoxContent = async (req, res) => {
             content: content,
           },
         },
-        { upsert: true } // create if not found
-      )
+        { upsert: true }, // create if not found
+      ),
     );
 
     await Promise.all(operations);
@@ -838,7 +848,7 @@ exports.dataBackup = async (req, res) => {
     }
     const result = await backupDatabase(
       process.env.DB_URL,
-      process.env.BackupDB
+      process.env.BackupDB,
     );
     return res.status(200).json({ success: true, result });
   } catch (error) {
@@ -865,7 +875,6 @@ exports.getOtp = async (req, res) => {
     const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 min expiry
     const query = { $or: [{ phone: data }, { email: data }] };
     let admin = await adminModel.findOne(query);
-
     admin.otp = Number(otp);
     admin.otpExpire = otpExpiry;
     await admin.save();
@@ -874,10 +883,9 @@ exports.getOtp = async (req, res) => {
     //   admin.phone
     // )}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
 
-    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Reset Password OTP is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690`;
+    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
 
     const response = await axios.get(apiUrl);
-    console.log("otp resust", response.data);
     if (response.data.status === "success") {
       return res.status(200).json({
         success: true,

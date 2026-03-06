@@ -10,6 +10,7 @@ const {
   getPaidSerivcesToEachUser,
   updateServiceDueDates,
   addSingleLoanToClient,
+  undoMarkAsPaid,
 } = require("../controllers/EMISettlementController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
@@ -26,7 +27,7 @@ EmiSettlementRoute.delete(
   "/delete-emi",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  deleteEmis
+  deleteEmis,
 );
 EmiSettlementRoute.get("/getall", getAllEmiByUser);
 EmiSettlementRoute.post("/manual", ManualEmiUpload);
@@ -34,30 +35,36 @@ EmiSettlementRoute.put(
   "/mark-as-paid",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  marksAsPaid
+  marksAsPaid,
+);
+EmiSettlementRoute.put(
+  "/undo",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  undoMarkAsPaid,
 );
 EmiSettlementRoute.patch(
   "/update-date",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  updateServiceDueDates
+  updateServiceDueDates,
 );
 EmiSettlementRoute.post(
   "/create-test-emi",
   csvUpload.single("file"),
-  createTestEmi
+  createTestEmi,
 );
 
 EmiSettlementRoute.post(
   "/outstand",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  outstandingController
+  outstandingController,
 );
 EmiSettlementRoute.post(
   "/add-single-loan",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  addSingleLoanToClient
+  addSingleLoanToClient,
 );
 module.exports = EmiSettlementRoute;

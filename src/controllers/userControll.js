@@ -343,6 +343,8 @@ exports.InsertUser = async (req, res, next) => {
   }
 };
 
+// <------------ USER SAVING FUNCTIONALITY START -------------->
+
 // insert saving by user
 exports.userSaving = async (req, res, next) => {
   try {
@@ -489,6 +491,108 @@ exports.getAllSavingToUser = async (req, res) => {
 };
 
 //get all user savings
+
+// delete user savings
+exports.deleteUserSavings = async (req, res, next) => {
+  const user_id = req?.user_id || req.params.user_id || req.body.user_id;
+  const { saving_id } = req.query;
+  if (!user_id) {
+    return res.status(400).json({
+      success: false,
+      message: "user_id required",
+    });
+  }
+  if (!saving_id) {
+    return res.status(400).json({
+      success: false,
+      message: "saving credentials missing",
+    });
+  }
+
+  const removeSaving = await userSavingsModel.findOneAndDelete({
+    _id: saving_id,
+    user_id,
+  });
+  if (!removeSaving) {
+    return res.status(400).json({
+      success: false,
+      message: "Unable to delete. Please try again later.",
+    });
+  }
+
+  return res.status(201).json({
+    success: true,
+    message: "Saving delete successfull",
+  });
+};
+
+// update user savings
+exports.updateUserSavings = async (req, res, next) => {
+  try {
+    const user_id = req.params.user_id || req.query.user_id;
+    const { month, year, amount, saving_id } = req.body;
+
+    if (!user_id) {
+      return res.status(400).json({
+        success: false,
+        message: "user_id required",
+      });
+    }
+
+    if (!saving_id) {
+      return res.status(400).json({
+        success: false,
+        message: "saving_id required",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid User Id",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(saving_id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Saving Id",
+      });
+    }
+
+    if (!month || !year || amount == null) {
+      return res.status(400).json({
+        success: false,
+        message: "month, year and amount are required",
+      });
+    }
+
+    const payload = { amount, month, year };
+
+    const update_saving = await userSavingsModel.findOneAndUpdate(
+      { _id: saving_id, user_id },
+      { $set: payload },
+      { new: true },
+    );
+
+    if (!update_saving) {
+      return res.status(404).json({
+        success: false,
+        message: "Saving not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Saving updated successfully",
+      data: update_saving,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// <------------ USER SAVING FUNCTIONALITY ENDS HERE ------------------>
 
 // change phone number
 exports.changePhoneNumber = async (req, res) => {

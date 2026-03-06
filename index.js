@@ -17,7 +17,7 @@ if (cluster.isMaster) {
   // If cron jobs need DB, connect here once
   connectDB()
     .then(() => {
-      console.log("Master connected to DB ✅");
+      console.log("Master connected to DB ");
       const SubscriptionCronJob = require("./src/config/cron-job/subscriptionReminderCron");
       const cronJob = require("./src/config/cron-job/nodeCron");
       // const dateCron = require("./src/config/cron-job/dateUpdteCron");
@@ -28,14 +28,14 @@ if (cluster.isMaster) {
       }
     })
     .catch((err) => {
-      console.error("Master DB connection failed ❌:", err);
+      console.error("Master DB connection failed:", err);
       process.exit(1);
     });
 } else {
   // Worker: connect DB before starting server
   connectDB()
     .then(() => {
-      console.log(`Worker ${process.pid} connected to DB ✅`);
+      console.log(`Worker ${process.pid} connected to DB `);
 
       const server = http.createServer(app);
       const io = new Server(server, {
@@ -57,7 +57,7 @@ if (cluster.isMaster) {
       });
     })
     .catch((err) => {
-      console.error(`Worker ${process.pid} DB connection failed ❌:`, err);
+      console.error(`Worker ${process.pid} DB connection failed :`, err);
       process.exit(1);
     });
 }
