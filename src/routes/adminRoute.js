@@ -21,6 +21,7 @@ const {
   dataBackup,
   getOtp,
   forgetPassword,
+  getLogsDetails,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -40,44 +41,44 @@ adminRouter.put(
   "/profile-update",
   AuthMiddleWare,
   UploadSingleImage.single("image"),
-  uploadProfileImage
+  uploadProfileImage,
 );
 adminRouter.put(
   "/",
   upload.single("barcode"),
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  addBarcodeWithUpi
+  addBarcodeWithUpi,
 );
 adminRouter.put(
   "/update-details",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  updateAdminDetails
+  updateAdminDetails,
 );
 adminRouter.get(
   "/get-details",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  getAdminDetails
+  getAdminDetails,
 );
 adminRouter.get(
   "/barcode-details",
   AuthMiddleWare,
   roleAuthenticaton("admin", "user"),
-  getBarcodeAndUpi
+  getBarcodeAndUpi,
 );
 adminRouter.post(
   "/admindashboardbanner",
   AuthMiddleWare,
   UploadSingleImage.single("image"),
-  adminDashboardBanner
+  adminDashboardBanner,
 );
 adminRouter.get("/getadminBanner", getAdminAnsLoginBanner);
 adminRouter.get("/adminProfileBanner", getAdminProfileAndBanner);
 // adminRouter.get("/login-background", getlo);
 adminRouter.post("/add-banks", UploadSingleImage.single("image"), addBanks);
-adminRouter.get("/get-banks", getBanks);
+adminRouter.get("/get-banks", AuthMiddleWare, getBanks);
 
 //regarding change password routes
 adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
@@ -90,34 +91,42 @@ adminRouter.post(
   "/login-background",
   AuthMiddleWare,
   UploadSingleImage.single("image"),
-  addLoginBackground
+  addLoginBackground,
 );
 
 adminRouter.post(
   "/add-content",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  addDialBoxContent
+  addDialBoxContent,
 );
 adminRouter.post(
   "/get-content",
   UserAuthMiddleWare,
   roleAuthenticaton("user", "admin"),
-  getDialogBoxToAll
+  getDialogBoxToAll,
 );
 adminRouter.get(
   "/get-content-admin",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  getDialogBoxToAdmin
+  getDialogBoxToAdmin,
 );
 
 adminRouter.post(
   "/backup",
   [AuthMiddleWare, roleAuthenticaton("admin")],
-  dataBackup
+  dataBackup,
 );
 
 adminRouter.post("/get-otp", getOtp);
 adminRouter.post("/forget-password", forgetPassword);
+
+// logs
+adminRouter.get(
+  "/logs",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  getLogsDetails,
+);
 module.exports = adminRouter;

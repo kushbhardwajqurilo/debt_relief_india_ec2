@@ -755,7 +755,7 @@ exports.outstandingController = async (req, res) => {
     const newOutstanding = {
       finalOutstandingAmount: parseInt(finaloutamount),
       finalSettelement: parseInt(finalsettelement),
-      finalPercentage: parseInt(finalpercentage),
+      finalPercentage: Number(finalpercentage).toFixed(2),
       finalSavings: parseInt(finalsaving),
     };
 

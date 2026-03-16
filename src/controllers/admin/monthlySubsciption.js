@@ -12,6 +12,7 @@ const fcmTokenModel = require("../../models/fcmTokenModel");
 const {
   sendNotificationToSingleUser,
 } = require("../../config/expo-push-notification/expoNotification");
+const { createLog } = require("../../utilitis/log");
 exports.SubscriptionsController = async (req, res, next) => {
   try {
     const validation = {
@@ -20,12 +21,18 @@ exports.SubscriptionsController = async (req, res, next) => {
       duedate: "",
       client: "",
     };
-
     const { admin_id, role } = req;
     const { subscription, gst, client, duedate } = req.body;
 
     // ---------------- VALIDATIONS ----------------
     if (!admin_id || !role) {
+      await createLog({
+        user_name: "Unknown",
+        role: "unknown",
+        action:
+          "Someone tried to create subscription but admin credentials missing",
+      });
+
       return res.status(400).json({ message: "Invalid admin credentials" });
     }
 
@@ -50,8 +57,14 @@ exports.SubscriptionsController = async (req, res, next) => {
       }
     }
 
-    const admin = await adminModel.findById(admin_id);
+    const admin = await adminModel.findById(admin_id, "name");
     if (!admin) {
+      await createLog({
+        user_name: "Unknown",
+        role,
+        action: "Invalid admin tried to create/update subscription",
+      });
+
       return res.status(400).json({ message: "Admin not found" });
     }
 
@@ -77,27 +90,31 @@ exports.SubscriptionsController = async (req, res, next) => {
     let message;
 
     if (existingSubscription) {
-      // UPDATE EXISTING SUBSCRIPTION
       result = await subscriptionModel.findByIdAndUpdate(
         existingSubscription._id,
         payload,
         { new: true },
       );
+
       message = "Subscription updated successfully";
+      const clientName = await DrisModel.findOne({ userId: client }, "id");
+      await createLog({
+        user_name: admin?.name,
+        role,
+        action: `${admin?.name} updated subscription | ClientId:${clientName.id} | Amount:${amount} | GST:${gst}% | Amount:${Math.round(amount)}`,
+      });
     } else {
-      // CREATE NEW SUBSCRIPTION
       result = await subscriptionModel.create(payload);
+
       message = "Subscription created successfully";
+
+      await createLog({
+        user_name: admin?.name,
+        role,
+        action: `${admin?.name} created subscription | ClientId:${client} | Amount:${Math.round(amount)}`,
+      });
     }
 
-    // const token = await fcmTokenModel.findOne({ userId: payload.userId });
-    // const send = await sendNotificationToSingleUser(
-    //   token.token,
-    //   "Your Monthly SUbscription Has Been Added",
-    //   "Subscription",
-    //   "Monthly Subscription",
-    //   "Monthly Subscription",
-    // );
     return res.status(201).json({
       success: true,
       message,
@@ -105,6 +122,13 @@ exports.SubscriptionsController = async (req, res, next) => {
     });
   } catch (err) {
     console.error(err);
+
+    await createLog({
+      user_name: "System",
+      role: "error",
+      action: `Error while creating/updating subscription -> ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: err.message,
@@ -202,15 +226,60 @@ exports.getSubscriptionToUser = async (req, res, next) => {
 //update subscription by admin...
 exports.updateSubscription = async (req, res, next) => {
   try {
-    const { admin_id } = req;
+    const { admin_id, role } = req;
     const { id } = req.query;
     const { subscription, gst, duedate, subscriptionId } = req.body;
+
+    if (!role || !admin_id) {
+      await createLog({
+        user_name: "Unknown",
+        role: "unknown",
+        action:
+          "Someone tried to update subscription but admin credentials missing",
+      });
+
+      return res.status(400).json({ message: "Invalid admin credentials" });
+    }
+
+    const admin = await adminModel.findById(admin_id, "name");
+
     const fees = 1000;
     const amount = fees + (fees * gst) / 100;
+
     if (!duedate || isNaN(new Date(duedate))) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to update subscription but invalid due date`,
+      });
+
       return res.status(400).json({ message: "Invalid due date" });
     }
+
+    if (!id) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to update subscription but user id missing`,
+      });
+
+      return res.status(400).json({ message: "User required" });
+    }
+
     const parsedDueDate = new Date(duedate);
+
+    const isUser = await User.findById(id);
+
+    if (!isUser) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to update subscription but user not found | UserId:${id}`,
+      });
+
+      return res.status(400).json({ message: "User not found" });
+    }
+
     const updatedSubscription = {
       subscription,
       amount,
@@ -219,30 +288,40 @@ exports.updateSubscription = async (req, res, next) => {
       userId: id,
       adminId: admin_id,
     };
-    if (!id) {
-      return res.status(400).json({ message: "User required" });
-    }
-    if (!role || !admin_id) {
-      return res.status(400).json({ message: "Invalid admin credentials" });
-    }
 
-    const isUser = await User.findById(id);
-    if (!isUser || isUser.length === 0) {
-      return res.status(400).json({ message: "User not found" });
-    }
     const subscriptionResponse = await subscriptionModel.findByIdAndUpdate(
       subscriptionId,
       updatedSubscription,
       { new: true },
     );
+
     if (!subscriptionResponse) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to update subscription but subscription not found | SubscriptionId:${subscriptionId}`,
+      });
+
       return res.status(400).json({ message: "Subscription not found" });
     }
+
+    await createLog({
+      user_name: admin?.name,
+      role,
+      action: `${admin?.name} updated subscription | User:${isUser.name} | Amount:${amount}`,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Subscription Update",
     });
   } catch (err) {
+    await createLog({
+      user_name: admin?.name,
+      role: "role",
+      action: `Error while updating subscription -> ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: err.message,
@@ -256,23 +335,62 @@ exports.deleteSubscription = async (req, res, next) => {
     const { role, admin_id } = req;
     const { id } = req.query;
     const { subscriptionId } = req.body;
+
     if (!role || !admin_id) {
+      await createLog({
+        user_name: "Unknown",
+        role: "unknown",
+        action:
+          "Someone tried to delete subscription but admin credentials missing",
+      });
+
       return res.status(400).json({ message: "Invalid admin credentials" });
     }
+
+    const admin = await adminModel.findById(admin_id, "name");
+
     const isUser = await User.findById(id);
-    if (!isUser || isUser.length === 0) {
+
+    if (!isUser) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to delete subscription but user not found | UserId:${id}`,
+      });
+
       return res.status(400).json({ message: "User not found" });
     }
+
     const subscription =
       await subscriptionModel.findByIdAndDelete(subscriptionId);
+
     if (!subscription) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to delete subscription but not found | SubscriptionId:${subscriptionId}`,
+      });
+
       return res.status(400).json({ message: "Subscription not found" });
     }
+
+    await createLog({
+      user_name: admin?.name,
+      role,
+      action: `${admin?.name} deleted subscription | User:${isUser.name} | SubscriptionId:${subscriptionId}`,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Subscription Deleted",
     });
   } catch (err) {
+    await createLog({
+      user_name: "System",
+      role: "error",
+      action: `Error while deleting subscription -> ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: err.message,
@@ -426,15 +544,32 @@ exports.getAllUserToAdmin = async (req, res) => {
 exports.markSubscriptionAsPaid = async (req, res) => {
   try {
     const { subscriptionId, paymentMode, transactionId } = req.body;
-    const adminId = req.admin_id; // from auth middleware
+    const adminId = req.admin_id;
+    const role = req.role;
 
     if (!subscriptionId) {
+      await createLog({
+        user_name: "Unknown",
+        role: "unknown",
+        action:
+          "Someone tried to mark subscription as paid but subscriptionId missing",
+      });
+
       return res.status(400).json({ message: "Subscription ID is required" });
     }
 
+    const admin = await adminModel.findById(adminId, "name");
+
     // 1️⃣ Find the subscription
     const subscription = await subscriptionModel.findById(subscriptionId);
+
     if (!subscription) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to mark subscription as paid but subscription not found `,
+      });
+
       return res.status(404).json({ message: "Subscription not found" });
     }
 
@@ -461,15 +596,24 @@ exports.markSubscriptionAsPaid = async (req, res) => {
       status: "paid",
     });
 
-    // 4️⃣ Increment subscription dueDate by 1 month and reset isPaid
+    // 4️⃣ Increment subscription dueDate by 1 month
     if (subscription.dueDate) {
       const nextDueDate = new Date(subscription.dueDate);
       nextDueDate.setMonth(nextDueDate.getMonth() + 1);
 
       subscription.dueDate = nextDueDate;
-      subscription.isPaid = false; // mark next month as unpaid
+      subscription.isPaid = false;
       await subscription.save();
     }
+    const user = await DrisModel.findOne(
+      { userId: subscription?.userId },
+      "id",
+    );
+    await createLog({
+      user_name: admin?.name,
+      role,
+      action: `${admin?.name} marked subscription as paid | CustomerId: ${user?.id} | Amount:${subscription.amount}}`,
+    });
 
     return res.status(200).json({
       success: true,
@@ -478,6 +622,13 @@ exports.markSubscriptionAsPaid = async (req, res) => {
     });
   } catch (error) {
     console.error("Error marking subscription as paid:", error);
+
+    await createLog({
+      user_name: "System",
+      role: "error",
+      action: `Error while marking subscription paid -> ${error.message}`,
+    });
+
     return res.status(500).json({ message: "Server Error" });
   }
 };
@@ -519,39 +670,249 @@ exports.getPaidSubscriptions = async (req, res) => {
 exports.updateDueDates = async (req, res, next) => {
   try {
     const { date, user_id } = req.body;
+    const { admin_id, role } = req;
+
     if (!date) {
+      await createLog({
+        user_name: "Unknown",
+        role: "unknown",
+        action: "Someone tried to update due date but date missing",
+      });
+
       return res
         .status(400)
         .json({ success: false, message: "Date is required" });
     }
+
+    const admin = await adminModel.findById(admin_id, "name");
 
     const getSubscriptinDate = await subscriptionModel.findOne({
       userId: user_id,
     });
 
     if (!getSubscriptinDate) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to update due date but subscription not found | UserId:${user_id}`,
+      });
+
       return res
         .status(404)
         .json({ success: false, message: "Subscription not found" });
     }
 
+    const oldDate = getSubscriptinDate.dueDate;
+
     const d = new Date(getSubscriptinDate.dueDate);
-    d.setDate(date); // change only the day
+    d.setDate(date);
     const updateDate = d.toISOString();
 
-    // optional: save back to DB
     await subscriptionModel.updateOne(
       { userId: user_id },
       { $set: { dueDate: updateDate } },
     );
+    const user = await DrisModel.findOne({ userId: user_id }, "id");
+    await createLog({
+      user_name: admin?.name,
+      role,
+      action: `${admin?.name} updated subscription due date | UserId:${user?.id} | ${new Date(oldDate).toLocaleDateString("en-IN")} → ${new Date(updateDate).toLocaleDateString("en-IN")}`,
+    });
 
     return res.json({
       success: true,
       message: "Date Update",
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, message: error.message, error });
+    await createLog({
+      user_name: "System",
+      role: "error",
+      action: `Error while updating due date -> ${error.message}`,
+    });
+
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// monthly subscription undo
+// exports.undoMonthlySubscription = async (req, res) => {
+//   try {
+//     const { subscriptionId } = req.body;
+//     const adminId = req.admin_id;
+//     const role = req.role;
+
+//     if (!subscriptionId) {
+//       await createLog({
+//         user_name: "Unknown",
+//         role: "unknown",
+//         action: "Undo subscription payment attempted without subscriptionId",
+//       });
+
+//       return res.status(400).json({ message: "Subscription ID is required" });
+//     }
+
+//     const admin = await adminModel.findById(adminId, "name");
+
+//     // 1️⃣ Find subscription
+//     const subscription = await subscriptionModel.findById(subscriptionId);
+
+//     if (!subscription) {
+//       await createLog({
+//         user_name: admin?.name || "Admin",
+//         role,
+//         action: `${admin?.name} tried to undo subscription but subscription not found`,
+//       });
+
+//       return res.status(404).json({ message: "Subscription not found" });
+//     }
+
+//     // 2️⃣ Find last paid subscription entry
+//     const lastPaid = await paidSubscriptionModel
+//       .findOne({ subscriptionId: subscription._id })
+//       .sort({ createdAt: -1 });
+
+//     if (!lastPaid) {
+//       return res
+//         .status(400)
+//         .json({
+//           success: false,
+//           message: "No paid subscription found to undo",
+//         });
+//     }
+
+//     // 3️⃣ Decrease due date by 1 month
+//     if (subscription.dueDate) {
+//       const previousDueDate = new Date(subscription.dueDate);
+//       previousDueDate.setMonth(previousDueDate.getMonth() - 1);
+
+//       subscription.dueDate = previousDueDate;
+//       subscription.isPaid = false;
+//     }
+
+//     // 4️⃣ Delete last payment record
+//     await lastPaid.deleteOne();
+
+//     await subscription.save();
+
+//     const user = await DrisModel.findOne(
+//       { userId: subscription?.userId },
+//       "id",
+//     );
+
+//     await createLog({
+//       user_name: admin?.name,
+//       role,
+//       action: `${admin?.name} undo monthly subscription payment | CustomerId: ${user?.id} | Amount:${subscription.amount}`,
+//     });
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Monthly subscription payment undone successfully",
+//       data: {
+//         newDueDate: subscription.dueDate,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Undo subscription error:", error);
+
+//     await createLog({
+//       user_name: "System",
+//       role: "error",
+//       action: `Error while undoing subscription payment -> ${error.message}`,
+//     });
+
+//     return res.status(500).json({ message: "Server Error" });
+//   }
+// };
+
+exports.undoMonthlySubscription = async (req, res) => {
+  try {
+    const { userId, date } = req.body;
+
+    const adminId = req.admin_id;
+    const role = req.role;
+
+    if (!userId) {
+      await createLog({
+        user_name: "Unknown",
+        role: "unknown",
+        action: "Undo subscription payment attempt fail",
+      });
+
+      return res.status(400).json({ message: "Subscription ID is required" });
+    }
+
+    const admin = await adminModel.findById(adminId, "name");
+
+    // 1️⃣ Find subscription
+    const subscription = await subscriptionModel.findOne({
+      userId: userId.userId,
+    });
+
+    if (!subscription) {
+      await createLog({
+        user_name: admin?.name || "Admin",
+        role,
+        action: `${admin?.name} tried to undo subscription but subscription not found`,
+      });
+
+      return res.status(404).json({ message: "Subscription not found" });
+    }
+    const preDate = new Date(userId.date);
+    preDate.setMonth(preDate.getMonth() - 1);
+    // 2️⃣ Find last paid subscription entry
+    const lastPaid = await paidSubscriptionModel.findOne({
+      userId: userId.userId,
+      paidForDueDate: { $eq: preDate },
+    });
+    if (!lastPaid) {
+      return res.status(400).json({
+        success: false,
+        message: "No paid subscription found to undo",
+      });
+    }
+
+    // 3️⃣ Decrease due date by 1 month
+    if (subscription.dueDate) {
+      const previousDueDate = new Date(subscription.dueDate);
+      previousDueDate.setMonth(previousDueDate.getMonth() - 1);
+
+      subscription.dueDate = previousDueDate;
+      subscription.isPaid = false;
+    }
+
+    // 4️⃣ Delete last payment record
+    await lastPaid.deleteOne();
+
+    await subscription.save();
+
+    const user = await DrisModel.findOne(
+      { userId: subscription?.userId },
+      "id",
+    );
+
+    await createLog({
+      user_name: admin?.name,
+      role,
+      action: `${admin?.name} undo monthly subscription payment | CustomerId: ${user?.id} | Amount:${subscription.amount}`,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Monthly subscription payment undone successfully",
+      data: {
+        newDueDate: subscription.dueDate,
+      },
+    });
+  } catch (error) {
+    console.error("Undo subscription error:", error);
+
+    await createLog({
+      user_name: "System",
+      role: "error",
+      action: `Error while undoing subscription payment -> ${error.message}`,
+    });
+
+    return res.status(500).json({ message: "Server Error" });
   }
 };

@@ -9,6 +9,7 @@ const {
   getPaidSubscriptions,
   getSubscriptionToUser,
   updateDueDates,
+  undoMonthlySubscription,
 } = require("../controllers/admin/monthlySubsciption");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
@@ -19,49 +20,54 @@ subscriptionRouter.post(
   "/add-subscription",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  SubscriptionsController
+  SubscriptionsController,
 );
 
 subscriptionRouter.get(
   "/get-usersubs",
   UserAuthMiddleWare,
-  getSubscriptionToUser
+  getSubscriptionToUser,
 );
 subscriptionRouter.get("/get-substouser/:id", getUsersSubscriptionToUser);
 subscriptionRouter.get(
   "/get-substoadmin",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  getUsersSubscriptionToAdmin
+  getUsersSubscriptionToAdmin,
 );
 subscriptionRouter.put(
   "/update-subscription",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  updateSubscription
+  updateSubscription,
 );
 subscriptionRouter.delete(
   "/delete-subscription",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  deleteSubscription
+  deleteSubscription,
 );
 subscriptionRouter.get(
   "/subscription-users",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  getAllUserToAdmin
+  getAllUserToAdmin,
 );
 subscriptionRouter.post(
   "/markAsPaid",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  markSubscriptionAsPaid
+  markSubscriptionAsPaid,
 );
 
 subscriptionRouter.patch("/update-date", AuthMiddleWare, updateDueDates);
 
 subscriptionRouter.get("/getPaidSubscriptions", getPaidSubscriptions);
+subscriptionRouter.put(
+  "/undo-subscription",
+  AuthMiddleWare,
+  undoMonthlySubscription,
+);
 module.exports = subscriptionRouter;
 
 // https://4frnn03l-5000.inc1.devtunnels.ms/

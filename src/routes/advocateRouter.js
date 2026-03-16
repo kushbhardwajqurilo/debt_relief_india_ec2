@@ -12,13 +12,19 @@ const s3AdvoateUpload = require("../middlewares/AdvocateImageMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 
 const advocateRouter = require("express").Router();
-advocateRouter.post("/add", s3AdvoateUpload.single("image"), addAdvocate);
+advocateRouter.post(
+  "/add",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  s3AdvoateUpload.single("image"),
+  addAdvocate,
+);
 advocateRouter.put(
   "/update",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
   s3AdvoateUpload.single("image"),
-  updateAdvocate
+  updateAdvocate,
 );
 advocateRouter.get("/single/:id", getSingleAdvocate);
 advocateRouter.get("/all", getAllAdvocates);
@@ -29,7 +35,7 @@ advocateRouter.delete(
   "/delete-advocate/:id",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  deleteAdvocate
+  deleteAdvocate,
 );
 
 module.exports = advocateRouter;

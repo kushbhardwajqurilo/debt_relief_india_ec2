@@ -15,6 +15,8 @@ const { s3Client, PutObjectCommand } = require("../../config/aws-s3/s3Config");
 const {
   customeNoticationModel,
 } = require("../../models/contactYourAdvocateModel");
+const { createLog } = require("../../utilitis/log");
+const { getAdminName } = require("../../utilitis/getAdminName");
 
 exports.viewInvoice = async (req, res, next) => {
   try {
@@ -255,24 +257,24 @@ exports.getInvoicesByMonthYear = async (req, res) => {
 exports.uploadInvoice = async (req, res, next) => {
   try {
     const { phone } = req.body;
-    // const haveEmi = await DrisModel.findOne({ phone });
+    const adminName = await getAdminName();
 
-    // if (!haveEmi || haveEmi.totalEmi === 0) {
-    //   return res
-    //     .status(400)
-    //     .json({ success: false, message: "User hasn't any EMIs" });
-    // }
-    // if (haveEmi.status == "closed") {
-    //   return res.status(500).json({
-    //     success: false,
-    //     message: "All EMIs are already settled for this user.",
-    //   });
-    // }
     const file = req.file;
     if (!file) {
+      await createLog({
+        user_name: adminName?.name,
+        role: "admin",
+        action: `Invoice upload failed - file missing`,
+      });
       return res.status(400).json({ message: "No file uploaded" });
     }
+
     if (!phone) {
+      await createLog({
+        user_name: adminName?.name,
+        role: "admin",
+        action: `Invoice upload failed - phone number missing`,
+      });
       return res
         .status(400)
         .json({ success: false, message: "Phone number required" });
@@ -280,19 +282,23 @@ exports.uploadInvoice = async (req, res, next) => {
 
     const filePath = file.path;
 
-    // Parse PDF
     const buffer = fs.readFileSync(filePath);
     const pdfData = await pdfParse(buffer);
     const text = pdfData?.text || "";
 
     if (!text) {
+      await createLog({
+        user_name: adminName?.name,
+        role: "admin",
+        action: `Invoice upload failed for phone ${phone} - empty PDF content`,
+      });
+
       return res.status(400).json({
         success: false,
         message: "Could not extract text from PDF (empty content)",
       });
     }
 
-    // ✅ Safe Helper function
     const extractField = (text, label, pattern = /(.+)/) => {
       if (!text) return "";
       try {
@@ -305,9 +311,7 @@ exports.uploadInvoice = async (req, res, next) => {
       }
     };
 
-    // 🔹 Robust Service Extraction (handles compressed text and multiple services)
     let services = [];
-
     try {
       const serviceRegex =
         /(\d+)\s*([A-Za-z\s()]+?)(?:\s*\(([^)]+)\))?\s*9971/gi;
@@ -326,7 +330,6 @@ exports.uploadInvoice = async (req, res, next) => {
     let serviceName =
       services.length > 0 ? services.join(", ") : "Debt Relief Service";
 
-    // Extract other fields dynamically
     const invoiceData = {
       invoiceDate: extractField(text, "Invoice Date", /([\d\/]+)/),
       invoiceNumber: extractField(text, "Invoice No.", /#?([\w\/-]+)/),
@@ -341,12 +344,17 @@ exports.uploadInvoice = async (req, res, next) => {
       phone,
     };
 
-    // Validate required fields
     if (
       !invoiceData.invoiceDate ||
       !invoiceData.totalAmount ||
       !invoiceData.serviceName
     ) {
+      await createLog({
+        user_name: adminName?.name,
+        role: "admin",
+        action: `Invoice parsing failed for phone ${phone}`,
+      });
+
       return res.status(400).json({
         success: false,
         message: "Failed to extract required fields from invoice",
@@ -357,7 +365,6 @@ exports.uploadInvoice = async (req, res, next) => {
 
     const expo_token = await fcmTokenModel.findOne({ userId: user._id });
 
-    // Upload to S3
     const fileContent = fs.readFileSync(req.file.path);
     const ext = path.extname(req.file.originalname);
     const newKey = `Invoices/${Date.now()}-${Math.round(
@@ -379,28 +386,33 @@ exports.uploadInvoice = async (req, res, next) => {
 
     fs.unlinkSync(req.file.path);
 
-    // Save to DB
     const result = await InvoiceModel.create(invoiceData);
     if (!result) {
+      await createLog({
+        user_name: adminName?.name,
+        role: "admin",
+        action: `Invoice save failed for phone ${phone}`,
+      });
+
       return res.status(500).json({ message: "Failed to save invoice data" });
     }
 
-    // Update DrisModel
-    // const driuser = await DrisModel.findOneAndUpdate(
-    //   { phone },
-    //   {
-    //     $inc: { emiPay: 1 },
-    //     $set: { status: "pending", invoiceInsert: true },
-    //   },
-    //   { new: true, upsert: true }
-    // );
+    const driuser = await DrisModel.findOne({ phone });
 
     const custom_notification = await customeNoticationModel.find({});
     const invoice_noti =
       custom_notification?.[0]?.invoice ||
       `Dear ${driuser.name} Your Invoice Is Ready...`;
+
     const token = expo_token?.token;
 
+    await createNotification(user._id, "Invoice", `${invoice_noti}`, "Invoice");
+
+    await createLog({
+      user_name: adminName.name,
+      role: "admin",
+      action: `Invoice uploaded for ${driuser.name} | Customer ID: ${driuser.id} | Amount: ${invoiceData.totalAmount}`,
+    });
     if (expo_token?.token) {
       await sendNotificationToSingleUser(
         token,
@@ -409,18 +421,24 @@ exports.uploadInvoice = async (req, res, next) => {
         "Invoice",
       );
     }
-
-    await createNotification(user._id, "Invoice", `${invoice_noti}`, "Invoice");
-
     return res.status(200).json({
       message: "Invoice uploaded successfully",
       success: true,
     });
   } catch (err) {
     console.log("❌ Error in uploadInvoice:", err);
+
+    await createLog({
+      user_name: "System",
+      role: "error",
+      action: `Error while uploading invoice - ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: "Server error: " + err.message,
     });
   }
 };
+
+// cancel invoice

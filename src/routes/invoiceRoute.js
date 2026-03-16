@@ -16,7 +16,7 @@ InvoiceRouter.post(
   AuthMiddleWare,
   roleAuthenticaton("admin"),
   InvoiceMiddleware.single("pdf"),
-  uploadInvoice
+  uploadInvoice,
 );
 InvoiceRouter.post("/get-invoice", getInvoices);
 InvoiceRouter.get("/", viewInvoice);

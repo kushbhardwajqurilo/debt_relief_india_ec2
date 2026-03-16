@@ -10,6 +10,8 @@ const {
 const { default: axios } = require("axios");
 const { deleteFileFromS3, s3Client } = require("../config/aws-s3/s3Config");
 const DrisModel = require("../models/DriUserModel");
+const { createLog } = require("../utilitis/log");
+const logModel = require("../models/LogsModel");
 const otpStore = {};
 exports.sendOTP = async (req, res) => {
   try {
@@ -382,7 +384,7 @@ exports.userSaving = async (req, res, next) => {
       bank_id,
     });
 
-    return res.statuss(200).json({ success: true, message: "savings" });
+    return res.status(200).json({ success: true, message: "savings" });
   } catch (err) {
     return res.status(500).json({
       success: false,

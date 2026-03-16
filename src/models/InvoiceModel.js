@@ -17,8 +17,12 @@ const InvoiceSchema = new mongoose.Schema(
     url: {
       type: String,
     },
+    isCancel: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { strict: false }
+  { strict: false },
 );
 
 const InvoiceModel = mongoose.model("Invoice", InvoiceSchema);

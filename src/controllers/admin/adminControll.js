@@ -16,6 +16,8 @@ const User = require("../../models/userModel");
 const { default: mongoose } = require("mongoose");
 const backupDatabase = require("../back/db/backup");
 const { default: axios } = require("axios");
+const logModel = require("../../models/LogsModel");
+const { createLog } = require("../../utilitis/log");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -112,6 +114,11 @@ exports.loginAdmin = async (req, res, next) => {
     };
     const secretKey = process.env.SecretKey;
     const adminToken = jwt.sign(payload, secretKey, { expiresIn: "15d" });
+    await createLog({
+      user_name: payload.name,
+      role: "admin",
+      action: `${payload.name} logged in to the admin panel`,
+    });
     return res.status(200).json({
       success: true,
       message: "Logged in successfully",
@@ -134,7 +141,11 @@ exports.uploadProfileImage = async (req, res) => {
       },
       { new: true },
     );
-
+    await createLog({
+      user_name: user.name,
+      role: "admin",
+      action: `${user.name} updated their profile picture`,
+    });
     res.status(200).json({
       message: "Profile image uploaded successfully",
       success: "Prifile Uploaded.",
@@ -170,6 +181,11 @@ exports.addBarcodeWithUpi = async (req, res, next) => {
         message: "upload failed...",
       });
     }
+    await createLog({
+      user_name: isAdmin.name,
+      role: "admin",
+      action: `${isAdmin.name} updated Barcode and UPI`,
+    });
     return res
       .status(201)
       .json({ success: true, message: "barcode and upi added." });
@@ -253,6 +269,11 @@ exports.updateAdminDetails = async (req, res) => {
       });
     }
 
+    await createLog({
+      user_name: updatedAdmin.name,
+      role: "admin",
+      action: `${updatedAdmin.name} updated their details ${email ? "Email" : ""}, ${phone ? "Phone" : ""}`,
+    });
     return res.status(200).json({
       success: true,
       message: "Admin details updated successfully",
@@ -297,7 +318,11 @@ exports.requestOtp = async (req, res, next) => {
       admin.otpExpire = Date.now() + 5 * 60 * 1000;
       await admin.save();
       const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
-
+      await createLog({
+        user_name: admin?.name,
+        role: "admin",
+        action: `${admin?.name} requested an OTP to change password`,
+      });
       const response = await axios.get(apiUrl);
       if (response.data.status === "success") {
         return res.status(200).json({
@@ -313,6 +338,7 @@ exports.requestOtp = async (req, res, next) => {
         });
       }
     }
+
     return res.status(404).json({
       success: false,
       message: "Admin not found",
@@ -364,6 +390,11 @@ exports.verifyOtpForAdmin = async (req, res) => {
       process.env.ChangePasswordKey,
       { expiresIn: "5m" },
     );
+    await createLog({
+      user_name: admin.name,
+      role: "admin",
+      action: `${admin.name} requested OTP verification for password change`,
+    });
     return res
       .status(200)
       .json({ success: true, message: "OTP verified", verifyToken });
@@ -401,6 +432,11 @@ exports.changePasswprd = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Filed Try Again..." });
     }
+    await createLog({
+      user_name: update_password.name,
+      role: "admin",
+      action: `Password changed by ${update_password.name}`,
+    });
     return res
       .status(200)
       .json({ success: true, message: "Passoword Changed" });
@@ -692,7 +728,12 @@ exports.callNowSetup = async (req, res) => {
         message: "failed to setup message",
       });
     }
-
+    const admin = await adminModel.findOne({}, "name");
+    await createLog({
+      user_name: admin?.name,
+      role: "admin",
+      action: `update call now setup and contact your advocate message`,
+    });
     return res.status(200).json({
       success: true,
       message: "message setup successfully",
@@ -722,6 +763,12 @@ exports.getYourContactCall = async (req, res, next) => {
 // set dialbox content
 exports.addDialBoxContent = async (req, res) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
+    await createLog({
+      user_name: admin?.name,
+      role: "admin",
+      action: `${admin?.name || "Admin"} performed an action on Paid Dial Box content`,
+    });
     const { content } = req.body;
 
     if (!content) {
@@ -846,10 +893,16 @@ exports.dataBackup = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Invalid User Credentials" });
     }
+    const admin = await adminModel.findOne({}, "name");
     const result = await backupDatabase(
       process.env.DB_URL,
       process.env.BackupDB,
     );
+    await createLog({
+      user_name: admin?.name,
+      role: "admin",
+      action: `Backup process executed by ${admin?.name}`,
+    });
     return res.status(200).json({ success: true, result });
   } catch (error) {
     console.log(error);
@@ -882,7 +935,11 @@ exports.getOtp = async (req, res) => {
     // const apiUrl = `https://sms.autobysms.com/app/smsapi/index.php?key=45FA150E7D83D8&campaign=0&routeid=9&type=text&contacts=${Number(
     //   admin.phone
     // )}&senderid=SMSSPT&msg=Your OTP is ${otp} SELECTIAL&template_id=1707166619134631839`;
-
+    await createLog({
+      user_name: admin?.name,
+      role: "admin",
+      action: `Admin ${admin?.name} initiated an OTP request for password reset`,
+    });
     const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
 
     const response = await axios.get(apiUrl);
@@ -920,6 +977,11 @@ exports.forgetPassword = async (req, res, next) => {
     const admin = await adminModel.findOne({
       $or: [{ phone: data }, { email: data }],
     });
+    await createLog({
+      user_name: admin?.name || "Admin",
+      role: "admin",
+      action: `Password for the admin panel was changed by ${admin?.name || "Admin"}}`,
+    });
     if (!admin) {
       return res
         .status(400)
@@ -951,3 +1013,31 @@ exports.forgetPassword = async (req, res, next) => {
   }
 };
 // forget password end
+
+// get logs data
+exports.getLogsDetails = async (req, res) => {
+  try {
+    const logs = await logModel
+      .find({}, "user_name role action createdAt") // select only needed fields
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .lean();
+    const filteredData = logs.map((val) => {
+      return {
+        user_name: val?.user_name,
+        role: val?.role,
+        action: val?.action,
+        date: val?.createdAt,
+      };
+    });
+    return res.status(200).json({
+      status: true,
+      data: filteredData,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
