@@ -1,4 +1,8 @@
 const {
+  addMeterDetails,
+  getDriMeterDetails,
+} = require("../controllers/admin/adminControll");
+const {
   importUsersFromCSV,
   getUsersList,
   searchUserById,
@@ -25,18 +29,21 @@ driRoute.delete(
   "/delete-user",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  multipleSoftDelete
+  multipleSoftDelete,
 );
 driRoute.put(
   "/update-user",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  updateDriUserPhoneId
+  updateDriUserPhoneId,
 );
 driRoute.delete(
   "/permanent-delete",
   AuthMiddleWare,
   roleAuthenticaton("admin"),
-  permanentDeleteUserData
+  permanentDeleteUserData,
 );
+
+driRoute.post("/add-meter", addMeterDetails);
+driRoute.get("/get-meter", getDriMeterDetails);
 module.exports = driRoute;

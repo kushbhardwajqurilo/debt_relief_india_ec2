@@ -18,6 +18,7 @@ const backupDatabase = require("../back/db/backup");
 const { default: axios } = require("axios");
 const logModel = require("../../models/LogsModel");
 const { createLog } = require("../../utilitis/log");
+const DriMeterModel = require("../../models/drimeterModel");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -1033,6 +1034,94 @@ exports.getLogsDetails = async (req, res) => {
     return res.status(200).json({
       status: true,
       data: filteredData,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// get monthly logs
+// exports.getMonthlyYe
+
+// add debt relief meter details
+exports.addMeterDetails = async (req, res, next) => {
+  try {
+    const { admin_id } = req;
+
+    if (!admin_id) {
+      return res.status(401).json({
+        status: false,
+        message: "Admin credential missing",
+      });
+    }
+
+    const requiredFields = [
+      "fees",
+      "settlement_percentage",
+      "enroll_fees",
+      "harashment_plan",
+    ];
+
+    for (let field of requiredFields) {
+      const value = req.body[field];
+
+      if (value === undefined || value === null) {
+        return res.status(400).json({
+          status: false,
+          message: `${field} is required`,
+        });
+      }
+
+      if (typeof value === "string" && value.trim().length === 0) {
+        return res.status(400).json({
+          status: false,
+          message: `${field} cannot be empty`,
+        });
+      }
+    }
+
+    const payload = {
+      fees: Number(req.body.fees),
+      settlement_percentage: Number(req.body.settlement_percentage),
+      enroll_fees: Number(req.body.enroll_fees),
+      harashment_plan: Number(req.body.harashment_plan),
+    };
+    console.log(payload);
+    const driMeter = await DriMeterModel.findOneAndUpdate(
+      {},
+      { $set: payload },
+      { new: true, upsert: true },
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Meter details saved successfully",
+      // data: driMeter,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: error.message,
+    });
+  }
+};
+
+// get dri meter details
+exports.getDriMeterDetails = async (req, res, next) => {
+  try {
+    const meter = await DriMeterModel.findOne({}).select("-_id -__v");
+    if (!meter) {
+      return res.status(400).json({
+        status: false,
+        message: "meter details not found",
+      });
+    }
+    return res.status(200).json({
+      status: true,
+      data: meter,
     });
   } catch (error) {
     return res.status(500).json({

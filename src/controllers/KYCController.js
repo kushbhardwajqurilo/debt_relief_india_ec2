@@ -18,6 +18,7 @@ const {
   genratePresignedURL,
   generatePresignedURL,
 } = require("../config/aws-s3/s3Config");
+const { createLog } = require("../utilitis/log");
 
 // exports.CompleteKYC = async (req, res, next) => {
 //   try {
@@ -163,14 +164,155 @@ const {
 // };
 //approved kyc by admin
 
+// exports.ApproveByAdmin = async (req, res) => {
+//   try {
+//     const iconUrl = req.protocol + "://" + req.get("host");
+
+//     const admin_id = req.admin_id;
+//     const { kycId, assign_id, advocate_id } = req.body;
+
+//     if (!admin_id) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid Admin Credentials",
+//       });
+//     }
+
+//     if (!kycId || !assign_id || !advocate_id) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Missing required fields",
+//       });
+//     }
+
+//     const isAdmin = await adminModel.findById(admin_id);
+//     if (!isAdmin) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Admin not found",
+//       });
+//     }
+
+//     const isKYC = await KYCmodel.findById(kycId);
+//     if (!isKYC) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "KYC not found",
+//       });
+//     }
+
+//     if (isKYC.status === "approve") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "KYC is already approved",
+//       });
+//     }
+
+//     // Get user_id from KYC and assign to advocate
+//     const userId = isKYC.user_id;
+
+//     const updatedAdvocate = await advocateModel.findByIdAndUpdate(
+//       advocate_id,
+//       { $addToSet: { assignUsers: userId.toString() } }, // prevent duplicates
+//       { new: true },
+//     );
+
+//     if (!updatedAdvocate) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Advocate not found or update failed",
+//       });
+//     }
+
+//     const payload = {
+//       assign_advocate: advocate_id,
+//       status: "approve",
+//     };
+
+//     const updateKYC = await KYCmodel.findByIdAndUpdate(kycId, payload, {
+//       new: true,
+//     });
+
+//     if (!updateKYC) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Failed to approve KYC",
+//       });
+//     }
+//     const driPayload = {
+//       name: updateKYC.name,
+//       gender: updateKYC.gender,
+//       phone: updateKYC.phone,
+//       id: assign_id,
+//       status: "N/A",
+//       userId: updateKYC.user_id,
+//     };
+//     const existingDRiUser = await DrisModel.findOne({
+//       phone: driPayload.phone,
+//     });
+
+//     if (!existingDRiUser) {
+//       // User doesn't exist → create new
+//       const insertDRiUserAfterAsign = await DrisModel.create(driPayload);
+//       console.log("New DRi user created:", insertDRiUserAfterAsign);
+//     } else {
+//       // User exists → do nothing
+//       console.log("DRi user already exists. Skipping insert.");
+//     }
+//     const expo_token = await fcmTokenModel.findOne({
+//       userId: updateKYC.user_id,
+//     });
+//     const message = await customeNoticationModel.find({});
+//     const kyc_message =
+//       message?.[0]?.kyc_approve ||
+//       `Congratulations ${updateKYC?.name} your KYC Has been approved by admin`;
+
+//     const msg = kyc_message
+//       ? `${updateKYC.name} ${kyc_message}`
+//       : `Congratulations ${updateKYC?.name} your KYC Has been approved by admin`;
+
+//     await sendNotificationToSingleUser(
+//       expo_token.token,
+//       msg,
+//       "KYC Approved",
+//       "KYC",
+//     );
+
+//     await createNotification(
+//       updateKYC.user_id,
+//       "KYC Approved",
+//       kyc_message,
+//       "KYC",
+//     );
+//     return res.status(200).json({
+//       success: true,
+//       message: "KYC approved and advocate assigned",
+//     });
+//   } catch (error) {
+//     console.log("aprove kyc error", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Server error",
+//       error: error.message,
+//     });
+//   }
+// };
 exports.ApproveByAdmin = async (req, res) => {
   try {
+    const admin = await adminModel.findById(req.admin_id, "name");
+
     const iconUrl = req.protocol + "://" + req.get("host");
 
     const admin_id = req.admin_id;
     const { kycId, assign_id, advocate_id } = req.body;
 
     if (!admin_id) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: "System",
+        action: "Approve KYC failed: Invalid Admin Credentials",
+      });
+
       return res.status(400).json({
         success: false,
         message: "Invalid Admin Credentials",
@@ -178,6 +320,12 @@ exports.ApproveByAdmin = async (req, res) => {
     }
 
     if (!kycId || !assign_id || !advocate_id) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: "Approve KYC failed: Missing required fields",
+      });
+
       return res.status(400).json({
         success: false,
         message: "Missing required fields",
@@ -186,6 +334,12 @@ exports.ApproveByAdmin = async (req, res) => {
 
     const isAdmin = await adminModel.findById(admin_id);
     if (!isAdmin) {
+      await createLog({
+        user_name: "System",
+        role: "System",
+        action: `Approve KYC failed: Admin not found (${admin_id})`,
+      });
+
       return res.status(404).json({
         success: false,
         message: "Admin not found",
@@ -194,6 +348,12 @@ exports.ApproveByAdmin = async (req, res) => {
 
     const isKYC = await KYCmodel.findById(kycId);
     if (!isKYC) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `Approve KYC failed: KYC not found (${kycId})`,
+      });
+
       return res.status(404).json({
         success: false,
         message: "KYC not found",
@@ -201,22 +361,33 @@ exports.ApproveByAdmin = async (req, res) => {
     }
 
     if (isKYC.status === "approve") {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `Approve KYC skipped: Already approved (${kycId})`,
+      });
+
       return res.status(400).json({
         success: false,
         message: "KYC is already approved",
       });
     }
 
-    // Get user_id from KYC and assign to advocate
     const userId = isKYC.user_id;
 
     const updatedAdvocate = await advocateModel.findByIdAndUpdate(
       advocate_id,
-      { $addToSet: { assignUsers: userId.toString() } }, // prevent duplicates
+      { $addToSet: { assignUsers: userId.toString() } },
       { new: true },
     );
 
     if (!updatedAdvocate) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `Approve KYC failed: Advocate not found (${advocate_id})`,
+      });
+
       return res.status(404).json({
         success: false,
         message: "Advocate not found or update failed",
@@ -233,11 +404,18 @@ exports.ApproveByAdmin = async (req, res) => {
     });
 
     if (!updateKYC) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `Approve KYC failed: Update failed (${kycId})`,
+      });
+
       return res.status(400).json({
         success: false,
         message: "Failed to approve KYC",
       });
     }
+
     const driPayload = {
       name: updateKYC.name,
       gender: updateKYC.gender,
@@ -246,21 +424,22 @@ exports.ApproveByAdmin = async (req, res) => {
       status: "N/A",
       userId: updateKYC.user_id,
     };
+
     const existingDRiUser = await DrisModel.findOne({
       phone: driPayload.phone,
     });
 
     if (!existingDRiUser) {
-      // User doesn't exist → create new
       const insertDRiUserAfterAsign = await DrisModel.create(driPayload);
       console.log("New DRi user created:", insertDRiUserAfterAsign);
     } else {
-      // User exists → do nothing
       console.log("DRi user already exists. Skipping insert.");
     }
+
     const expo_token = await fcmTokenModel.findOne({
       userId: updateKYC.user_id,
     });
+
     const message = await customeNoticationModel.find({});
     const kyc_message =
       message?.[0]?.kyc_approve ||
@@ -283,12 +462,26 @@ exports.ApproveByAdmin = async (req, res) => {
       kyc_message,
       "KYC",
     );
+
+    await createLog({
+      user_name: admin?.name ?? "System",
+      role: admin?.name ? "admin" : "System",
+      action: `KYC approved (${driPayload.name}, ${driPayload.phone})`,
+    });
+
     return res.status(200).json({
       success: true,
       message: "KYC approved and advocate assigned",
     });
   } catch (error) {
     console.log("aprove kyc error", error);
+
+    await createLog({
+      user_name: "System",
+      role: "System",
+      action: `Approve KYC error: ${error.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: "Server error",

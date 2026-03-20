@@ -21,6 +21,8 @@ const {
 const { paidSubscriptionModel } = require("../models/monthlySubscriptionModel");
 const PaidService = require("../models/paidServicesModel");
 const padiDialBoxModel = require("../models/paidDialogBoxModel");
+const { createLog } = require("../utilitis/log");
+const adminModel = require("../models/adminModel");
 
 exports.EMIPayment = async (req, res, next) => {
   try {
@@ -80,6 +82,8 @@ exports.getAllEmiByUser = async (req, res, next) => {
 
 exports.ManualEmiUpload = async (req, res, next) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
+
     const validation = {
       phone: "",
       emiAmount: "",
@@ -88,62 +92,121 @@ exports.ManualEmiUpload = async (req, res, next) => {
       dueDate: "",
       settlementAount: "",
     };
+
     const { phone, emiAmount, emiType, noOfEmi, dueDate, settlementAount } =
       req.body;
+
+    /* ================= VALIDATION ================= */
+
     for (let val of Object.keys(validation)) {
       if (
         req.body[val] === undefined ||
         req.body[val] === "" ||
         req.body[val].toString().trim().length === 0
       ) {
-        return res
-          .status(400)
-          .json({ success: false, message: `${val} is required` });
+        await createLog({
+          user_name: admin?.name ?? "Debt Relief India",
+          action: `Manual EMI Upload Failed - Missing Field: ${val}`,
+          role: "admin",
+        });
+
+        return res.status(400).json({
+          success: false,
+          message: `${val} is required`,
+        });
       }
     }
+
     if (!phone || phone.length !== 10) {
-      return res.status(200).json({
+      await createLog({
+        user_name: admin?.name ?? "Debt Relief India",
+        action: `Manual EMI Upload Failed - Invalid Phone: ${phone}`,
+        role: "admin",
+      });
+
+      return res.status(400).json({
         success: false,
-        message: "Phone number is required and must be exactly 10 digits",
+        message: "Phone number must be exactly 10 digits",
       });
     }
+
+    /* ================= USER CHECK ================= */
+
     const kyc = await KYCmodel.findOne({ phone });
     const isUser = await DrisModel.findOne({ phone });
+
     if (!isUser) {
-      return res
-        .status(400)
-        .json({ success: false, message: "user not found at this number" });
+      await createLog({
+        user_name: admin?.name ?? "Debt Relief India",
+        action: `Manual EMI Upload Failed - User Not Found: ${phone}`,
+        role: "admin",
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: "user not found at this number",
+      });
     }
+
+    /* ================= EMI LOGIC ================= */
+
     if (emiType === "Settlement_Advance") {
       isUser.Service_Advance_Total = settlementAount;
       isUser.Service_Name = emiType;
     }
+
     if (emiType === "Service_Fees") {
       isUser.Service_Name = emiType;
       isUser.Service_Fees = settlementAount;
     }
+
     isUser.totalEmi = noOfEmi;
     isUser.dueDate = dueDate;
     isUser.Final_Settlement = emiAmount;
     isUser.status = "pending";
     isUser.insert = true;
+
     await isUser.save();
 
-    // send notification for emi's
+    /* ================= SUCCESS LOG ================= */
 
-    const expo_token = await fcmTokenModel.findOne({ userId: kyc?.user_id });
-    await sendNotificationToSingleUser(
-      expo_token.token,
-      `Dear ${kyc.name}, your total EMI has been created, please check it.`,
-    );
+    await createLog({
+      user_name: admin?.name ?? "Debt Relief India",
+      action: `Manual EMI Uploaded Successfully for phone: ${phone}`,
+      role: "admin",
+    });
+
+    /* ================= NOTIFICATION ================= */
+
+    const expo_token = await fcmTokenModel.findOne({
+      userId: kyc?.user_id,
+    });
+
+    if (expo_token?.token) {
+      await sendNotificationToSingleUser(
+        expo_token.token,
+        `Dear ${kyc?.name || "User"}, your total EMI has been created, please check it.`,
+      );
+    }
+
     return res.status(201).json({
       success: true,
-      message: "emi uploded",
+      message: "EMI uploaded successfully",
     });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ success: false, message: error.message, error });
+    /* ================= ERROR LOG ================= */
+
+    await createLog({
+      user_name: "System",
+      action: `Manual EMI Upload Error: ${error.message}`,
+      role: "system",
+    });
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+      error,
+    });
   }
 };
 
@@ -152,21 +215,39 @@ exports.marksAsPaid = async (req, res) => {
   try {
     const { phone, user_id } = req.body;
     const { admin_id } = req;
-
+    const admin = await adminModel.findOne({ _id: admin_id }, "name");
+    if (!admin) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `EMI Mark As Paid Failed to ${phone}`,
+      });
+    }
     if (!phone)
       return res
         .status(400)
         .json({ success: false, message: "Phone number required" });
-    if (!admin_id)
+    if (!admin_id) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `EMI Mark As Paid Failed for phone: ${phone} - Reason: Invalid Admin Credentials`,
+      });
       return res
         .status(400)
         .json({ success: false, message: "Admin credentials missing" });
-
+    }
     const user = await DrisModel.findOne({ phone });
-    if (!user)
+    if (!user) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? admin : "System",
+        action: `EMI Mark As Paid Failed for phone: ${phone} - Reason: Customer not found.`,
+      });
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
     if (!user.dueDate || user.dueDate.length === 0) {
       return res
         .status(400)
@@ -269,6 +350,11 @@ exports.marksAsPaid = async (req, res) => {
       await user.save();
     }
 
+    await createLog({
+      user_name: admin?.name ?? "System",
+      role: admin?.name ? "admin" : "System",
+      action: `Mark As Paid  for phone: ${phone} `,
+    });
     return res.status(200).json({
       success: true,
       message: "Marked as Paid & Due Date Updated (+1 Month)",
@@ -503,6 +589,14 @@ exports.createTestEmi = async (req, res) => {
 
 exports.BultEmiInsert = async (req, res) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
+    if (!admin) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: "Action performed for Bulk EMI Insert",
+      });
+    }
     const filePath = req.file.path;
     const jsonArray = await csv().fromFile(filePath);
 
@@ -723,8 +817,110 @@ exports.BultEmiInsert = async (req, res) => {
   }
 };
 
+// exports.outstandingController = async (req, res) => {
+//   try {
+//     const admin = await adminModel.findOne({},"name");
+
+//     const requiredFields = [
+//       "finaloutamount",
+//       "finalsettelement",
+//       "finalpercentage",
+//       "finalsaving",
+//       "phone",
+//       "loanId",
+//     ];
+
+//     for (let field of requiredFields) {
+//       if (!req.body[field] || req.body[field].toString().trim() === "") {
+//         return res
+//           .status(400)
+//           .json({ success: false, message: `${field} is required` });
+//       }
+//     }
+
+//     const {
+//       finaloutamount,
+//       finalsettelement,
+//       finalpercentage,
+//       finalsaving,
+//       phone,
+//       loanId,
+//     } = req.body;
+//     const loanObjId = new mongoose.Types.ObjectId(loanId);
+
+//     const newOutstanding = {
+//       finalOutstandingAmount: parseInt(finaloutamount),
+//       finalSettelement: parseInt(finalsettelement),
+//       finalPercentage: Number(finalpercentage).toFixed(2),
+//       finalSavings: parseInt(finalsaving),
+//     };
+
+//     const driUser = await DrisModel.findOne({ phone });
+//     if (!driUser) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "User not found" });
+//     }
+
+//     // ✅ Handle credit cards
+//     for (const val of driUser.credit_Cards || []) {
+//       if (val._id.equals(loanObjId)) {
+//         if (val.isOutstanding) {
+//           val.isOutstanding = false;
+//           Object.assign(val, newOutstanding);
+//           driUser.markModified("credit_Cards");
+//           await driUser.save();
+//           return res.status(200).json({
+//             success: true,
+//             message: "Service Closed (credit card)",
+//           });
+//         } else {
+//           return res.status(400).json({
+//             success: false,
+//             message: "This service is already outstanded",
+//           });
+//         }
+//       }
+//     }
+
+//     // ✅ Handle personal loans
+//     for (const val of driUser.personal_Loans || []) {
+//       if (val._id.equals(loanObjId)) {
+//         if (val.isOutstanding) {
+//           val.isOutstanding = false;
+//           Object.assign(val, newOutstanding);
+//           driUser.markModified("personal_Loans");
+//           await driUser.save();
+//           return res.status(200).json({
+//             success: true,
+//             message: "Service Closed (personal loan)",
+//           });
+//         } else {
+//           return res.status(400).json({
+//             success: false,
+//             message: "This service is already outstanded",
+//           });
+//         }
+//       }
+//     }
+
+//     // If no matching loan found
+//     return res.status(404).json({
+//       success: false,
+//       message: "No matching loan found",
+//     });
+//   } catch (error) {
+//     console.error("error", error);
+//     return res
+//       .status(500)
+//       .json({ success: false, message: error.message, error });
+//   }
+// };
+
 exports.outstandingController = async (req, res) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
+
     const requiredFields = [
       "finaloutamount",
       "finalsettelement",
@@ -736,6 +932,12 @@ exports.outstandingController = async (req, res) => {
 
     for (let field of requiredFields) {
       if (!req.body[field] || req.body[field].toString().trim() === "") {
+        await createLog({
+          user_name: admin?.name ?? "System",
+          role: "System",
+          action: `Outstanding failed: ${field} missing`,
+        });
+
         return res
           .status(400)
           .json({ success: false, message: `${field} is required` });
@@ -750,6 +952,7 @@ exports.outstandingController = async (req, res) => {
       phone,
       loanId,
     } = req.body;
+
     const loanObjId = new mongoose.Types.ObjectId(loanId);
 
     const newOutstanding = {
@@ -761,6 +964,12 @@ exports.outstandingController = async (req, res) => {
 
     const driUser = await DrisModel.findOne({ phone });
     if (!driUser) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: "System",
+        action: `Outstanding failed: User not found (${phone})`,
+      });
+
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
@@ -774,11 +983,24 @@ exports.outstandingController = async (req, res) => {
           Object.assign(val, newOutstanding);
           driUser.markModified("credit_Cards");
           await driUser.save();
+
+          await createLog({
+            user_name: admin?.name ?? "System",
+            role: "System",
+            action: `Outstanding updated for credit card (${phone})`,
+          });
+
           return res.status(200).json({
             success: true,
             message: "Service Closed (credit card)",
           });
         } else {
+          await createLog({
+            user_name: admin?.name ?? "System",
+            role: "System",
+            action: `Outstanding already done (credit card) (${phone})`,
+          });
+
           return res.status(400).json({
             success: false,
             message: "This service is already outstanded",
@@ -795,11 +1017,24 @@ exports.outstandingController = async (req, res) => {
           Object.assign(val, newOutstanding);
           driUser.markModified("personal_Loans");
           await driUser.save();
+
+          await createLog({
+            user_name: admin?.name ?? "System",
+            role: admin?.name ? "admin" : "System",
+            action: `Outstanding updated for personal loan (${phone})`,
+          });
+
           return res.status(200).json({
             success: true,
             message: "Service Closed (personal loan)",
           });
         } else {
+          await createLog({
+            user_name: admin?.name ?? "System",
+            role: admin?.name ? "admin" : "System",
+            action: `Outstanding already done (personal loan) (${phone})`,
+          });
+
           return res.status(400).json({
             success: false,
             message: "This service is already outstanded",
@@ -808,19 +1043,31 @@ exports.outstandingController = async (req, res) => {
       }
     }
 
-    // If no matching loan found
+    // ❌ No loan found
+    await createLog({
+      user_name: admin?.name ?? "System",
+      role: admin?.name ? "admin" : "System",
+      action: `Outstanding failed: No loan found (${phone}, loanId: ${loanId})`,
+    });
+
     return res.status(404).json({
       success: false,
       message: "No matching loan found",
     });
   } catch (error) {
     console.error("error", error);
+
+    await createLog({
+      user_name: admin?.name ?? "System",
+      role: admin?.name ? "admin" : "System",
+      action: `Outstanding error: ${error.message}`,
+    });
+
     return res
       .status(500)
       .json({ success: false, message: error.message, error });
   }
 };
-
 // get outstanding
 // exports.getOutstanding = async (req, res) => {
 //   try {
@@ -864,12 +1111,54 @@ exports.getPaidSerivcesToEachUser = async (req, res) => {
 };
 
 // update due date
+// exports.updateServiceDueDates = async (req, res, next) => {
+//   try {
+//     const { date, phone } = req.body;
+//     // console.log({ date, phone });
+
+//     if (!date || !phone) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Credentials missing" });
+//     }
+
+//     const getDates = await DrisModel.findOne({ phone });
+
+//     if (!getDates || !getDates.dueDate) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "No due date found for this phone" });
+//     }
+
+//     // Ensure day is always 2 digits
+//     const day = date.toString().padStart(2, "0");
+
+//     // Replace the day in the existing dueDate string
+//     const updatedDate = day + getDates.dueDate.slice(2); // keep "-MM-YYYY"
+//     getDates.dueDate = updatedDate;
+//     await getDates.save();
+//     // Optionally, update in DB
+//     // await DrisModel.updateOne({ phone }, { dueDate: updatedDate });
+
+//     return res.json({ success: true, message: "Date Update" });
+//   } catch (error) {
+//     return res
+//       .status(500)
+//       .json({ success: false, message: error.message, error });
+//   }
+// };
 exports.updateServiceDueDates = async (req, res, next) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
     const { date, phone } = req.body;
-    // console.log({ date, phone });
 
     if (!date || !phone) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: "Update due date failed: Credentials missing",
+      });
+
       return res
         .status(400)
         .json({ success: false, message: "Credentials missing" });
@@ -878,9 +1167,16 @@ exports.updateServiceDueDates = async (req, res, next) => {
     const getDates = await DrisModel.findOne({ phone });
 
     if (!getDates || !getDates.dueDate) {
-      return res
-        .status(404)
-        .json({ success: false, message: "No due date found for this phone" });
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: admin?.name ? "admin" : "System",
+        action: `Update due date failed: No due date found (${phone})`,
+      });
+
+      return res.status(404).json({
+        success: false,
+        message: "No due date found for this phone",
+      });
     }
 
     // Ensure day is always 2 digits
@@ -889,18 +1185,28 @@ exports.updateServiceDueDates = async (req, res, next) => {
     // Replace the day in the existing dueDate string
     const updatedDate = day + getDates.dueDate.slice(2); // keep "-MM-YYYY"
     getDates.dueDate = updatedDate;
+
     await getDates.save();
-    // Optionally, update in DB
-    // await DrisModel.updateOne({ phone }, { dueDate: updatedDate });
+
+    await createLog({
+      user_name: admin?.name ?? "System",
+      role: admin?.name ? "admin" : "System",
+      action: `Due date updated for ${phone} → ${updatedDate}`,
+    });
 
     return res.json({ success: true, message: "Date Update" });
   } catch (error) {
+    await createLog({
+      user_name: "System",
+      role: "System",
+      action: `Update due date error: ${error.message}`,
+    });
+
     return res
       .status(500)
       .json({ success: false, message: error.message, error });
   }
 };
-
 // add single loan to user
 
 exports.addSingleLoanToClient = async (req, res, next) => {
@@ -966,27 +1272,121 @@ exports.addSingleLoanToClient = async (req, res, next) => {
 };
 
 // REVERSE MARK  AS PAID
+// exports.undoMarkAsPaid = async (req, res) => {
+//   try {
+//     const { phone, user_id } = req.body;
+
+//     if (!phone)
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Phone required" });
+
+//     const user = await DrisModel.findOne({ phone });
+//     if (!user)
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "User not found" });
+
+//     if (user.emiPay <= 0)
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Nothing to undo" });
+
+//     // 🔹 Date Helpers
+//     const parseDDMMYYYY = (dateStr) => {
+//       const [day, month, year] = dateStr?.split("-").map(Number);
+//       return new Date(year, month - 1, day);
+//     };
+
+//     const formatDDMMYYYY = (date) => {
+//       return `${String(date.getDate()).padStart(2, "0")}-${String(
+//         date.getMonth() + 1,
+//       ).padStart(2, "0")}-${date.getFullYear()}`;
+//     };
+
+//     const addMonth = (date, months = 1) => {
+//       const d = new Date(date);
+//       const day = d.getDate();
+//       d.setMonth(d.getMonth() + months);
+//       if (d.getDate() !== day) d.setDate(0);
+//       return d;
+//     };
+
+//     // 🔻 Decrease Due Date
+//     const currentDate = parseDDMMYYYY(user.dueDate);
+//     const previousDueDate = addMonth(currentDate, -1);
+
+//     user.dueDate = formatDDMMYYYY(previousDueDate);
+//     user.emiPay = user.emiPay - 1;
+
+//     // 🗑 Delete Last PaidService Entry (latest EMI)
+//     await PaidService.findOneAndDelete({
+//       userId: user_id,
+//       emiNo: user.emiPay + 1, // because we already reduced
+//     });
+
+//     // 🔓 If closed → reopen
+//     if (user.status === "closed") {
+//       user.status = "pending";
+//     }
+
+//     await user.save();
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Undo Successful (Due Date -1 Month & Last EMI Removed)",
+//     });
+//   } catch (err) {
+//     console.error("Undo Error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//     });
+//   }
+// };
+
 exports.undoMarkAsPaid = async (req, res) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
     const { phone, user_id } = req.body;
 
-    if (!phone)
+    if (!phone) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: "System",
+        action: "Undo MarkAsPaid failed: Phone required",
+      });
+
       return res
         .status(400)
         .json({ success: false, message: "Phone required" });
+    }
 
     const user = await DrisModel.findOne({ phone });
-    if (!user)
+    if (!user) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: "System",
+        action: `Undo MarkAsPaid failed: User not found (${phone})`,
+      });
+
       return res
         .status(404)
         .json({ success: false, message: "User not found" });
+    }
 
-    if (user.emiPay <= 0)
+    if (user.emiPay <= 0) {
+      await createLog({
+        user_name: admin?.name ?? "System",
+        role: "System",
+        action: `Undo MarkAsPaid failed: Nothing to undo (${phone})`,
+      });
+
       return res
         .status(400)
         .json({ success: false, message: "Nothing to undo" });
+    }
 
-    // 🔹 Date Helpers
     const parseDDMMYYYY = (dateStr) => {
       const [day, month, year] = dateStr?.split("-").map(Number);
       return new Date(year, month - 1, day);
@@ -1006,25 +1406,28 @@ exports.undoMarkAsPaid = async (req, res) => {
       return d;
     };
 
-    // 🔻 Decrease Due Date
     const currentDate = parseDDMMYYYY(user.dueDate);
     const previousDueDate = addMonth(currentDate, -1);
 
     user.dueDate = formatDDMMYYYY(previousDueDate);
     user.emiPay = user.emiPay - 1;
 
-    // 🗑 Delete Last PaidService Entry (latest EMI)
     await PaidService.findOneAndDelete({
       userId: user_id,
-      emiNo: user.emiPay + 1, // because we already reduced
+      emiNo: user.emiPay + 1,
     });
 
-    // 🔓 If closed → reopen
     if (user.status === "closed") {
       user.status = "pending";
     }
 
     await user.save();
+
+    await createLog({
+      user_name: admin?.name ?? "System",
+      role: "System",
+      action: `Undo MarkAsPaid success (${phone})`,
+    });
 
     return res.status(200).json({
       success: true,
@@ -1032,6 +1435,13 @@ exports.undoMarkAsPaid = async (req, res) => {
     });
   } catch (err) {
     console.error("Undo Error:", err);
+
+    await createLog({
+      user_name: "System",
+      role: "System",
+      action: `Undo MarkAsPaid error: ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: err.message,

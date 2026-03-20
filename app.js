@@ -36,7 +36,7 @@ const app = express();
 // ----------------------------
 //git
 // Enable CORS
-app.use(cors());
+app.use(cors("*"));
 app.set("view engine", "ejs");
 // Security headers with Helmet (optimized)
 app.use(

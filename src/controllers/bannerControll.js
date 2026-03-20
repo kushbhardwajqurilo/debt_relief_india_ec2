@@ -126,7 +126,7 @@ exports.updateBannerWithTitle = async (req, res) => {
     const updatedBanner = await bannerWithTitle.findByIdAndUpdate(
       bannerId,
       updatedData,
-      { new: true }
+      { new: true },
     );
 
     return res.status(200).json({

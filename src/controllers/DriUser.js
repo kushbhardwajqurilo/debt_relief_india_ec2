@@ -12,18 +12,126 @@ const {
   subscriptionModel,
 } = require("../models/monthlySubscriptionModel");
 const userSavingsModel = require("../models/userSavingsModel");
+const { createLog } = require("../utilitis/log");
+const adminModel = require("../models/adminModel");
+// exports.importUsersFromCSV = async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ message: "File required" });
+//     }
+
+//     // Step 1: Read CSV
+//     const result = await csv().fromFile(req.file.path);
+
+//     // Step 2: Prepare base data from CSV
+//     const data = result.map((row) => ({
+//       id: row.UserId || row.id || null, // CSV ke id field se
+//       name: row.ClientName,
+//       email: row.ClientEmail,
+//       gender: row.Gender,
+//       phone: String(row.Phone).trim(),
+//       existingUser: true,
+//       status: "N/A",
+//     }));
+
+//     // Step 3: Collect all phone numbers
+//     const phones = data.map((u) => u.phone);
+
+//     // Step 4: Find existing users in User model
+//     const existingUsers = await User.find(
+//       { phone: { $in: phones } },
+//       { phone: 1 },
+//     );
+
+//     const existingUserPhones = existingUsers.map((u) => String(u.phone));
+
+//     // Step 5: Create new users in User model (for missing phones)
+//     const newUserPhones = phones.filter((p) => !existingUserPhones.includes(p));
+//     if (newUserPhones.length > 0) {
+//       const newUserDocs = newUserPhones.map((p) => ({
+//         phone: p,
+//         existingUser: true,
+//       }));
+//       await User.insertMany(newUserDocs, { ordered: true });
+//     }
+
+//     // Step 6: Re-fetch all users to build a phone → _id map
+//     const allUsers = await User.find(
+//       { phone: { $in: phones } },
+//       { _id: 1, phone: 1 },
+//     );
+
+//     const userMap = new Map();
+//     allUsers.forEach((u) => userMap.set(String(u.phone), u._id));
+
+//     // Step 7: Find existing Dris users (avoid duplicates)
+//     const existingDrisUsers = await DrisModel.find(
+//       { phone: { $in: phones } },
+//       { phone: 1 },
+//     );
+//     const existingDrisPhones = existingDrisUsers.map((u) => String(u.phone));
+
+//     // Step 8: Filter new Dris entries only
+//     const newUsers = data.filter((u) => !existingDrisPhones.includes(u.phone));
+
+//     if (newUsers.length === 0) {
+//       return res.status(200).json({
+//         success: false,
+//         message: "No new users to insert (all phone numbers already exist)",
+//       });
+//     }
+
+//     // Step 9: Add userId + id to each new Dris record
+//     const drisToInsert = newUsers.map((u) => ({
+//       ...u,
+//       id: u.id || null, // from CSV
+//       userId: userMap.get(String(u.phone)) || null, // from User model
+//       user_id: userMap.get(String(u.phone)) || null, // from User model
+//     }));
+//     // Step 10: Insert new records
+//     await DrisModel.insertMany(drisToInsert, { ordered: true });
+//     const kycToInsert = newUsers.map((u) => ({
+//       ...u,
+//       id: u.id || null, // from CSV
+//       userId: userMap.get(String(u.phone)) || null, // from User model
+//       user_id: userMap.get(String(u.phone)) || null, // from User model
+//       status: "approve",
+//       userType: "existing",
+//     }));
+//     await KYCmodel.insertMany(kycToInsert, { ordered: true });
+//     return res.status(200).json({
+//       success: true,
+//       message: "Users inserted successfully with id and userId",
+//       insertedCount: drisToInsert.length,
+//     });
+//   } catch (err) {
+//     console.error("Insertion error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//       reason: err?.writeErrors?.[0]?.errmsg || "Unknown error",
+//     });
+//   }
+// };
+
 exports.importUsersFromCSV = async (req, res) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
+
     if (!req.file) {
+      await createLog({
+        user_name: admin?.name || "System",
+        role: admin?.name ? "admin" : "system",
+        action: `${admin?.name || "System"} attempted to import users via CSV but file was missing`,
+      });
+
       return res.status(400).json({ message: "File required" });
     }
 
-    // Step 1: Read CSV
     const result = await csv().fromFile(req.file.path);
 
-    // Step 2: Prepare base data from CSV
     const data = result.map((row) => ({
-      id: row.UserId || row.id || null, // CSV ke id field se
+      id: row.UserId || row.id || null,
       name: row.ClientName,
       email: row.ClientEmail,
       gender: row.Gender,
@@ -32,10 +140,8 @@ exports.importUsersFromCSV = async (req, res) => {
       status: "N/A",
     }));
 
-    // Step 3: Collect all phone numbers
     const phones = data.map((u) => u.phone);
 
-    // Step 4: Find existing users in User model
     const existingUsers = await User.find(
       { phone: { $in: phones } },
       { phone: 1 },
@@ -43,8 +149,8 @@ exports.importUsersFromCSV = async (req, res) => {
 
     const existingUserPhones = existingUsers.map((u) => String(u.phone));
 
-    // Step 5: Create new users in User model (for missing phones)
     const newUserPhones = phones.filter((p) => !existingUserPhones.includes(p));
+
     if (newUserPhones.length > 0) {
       const newUserDocs = newUserPhones.map((p) => ({
         phone: p,
@@ -53,7 +159,6 @@ exports.importUsersFromCSV = async (req, res) => {
       await User.insertMany(newUserDocs, { ordered: true });
     }
 
-    // Step 6: Re-fetch all users to build a phone → _id map
     const allUsers = await User.find(
       { phone: { $in: phones } },
       { _id: 1, phone: 1 },
@@ -62,41 +167,54 @@ exports.importUsersFromCSV = async (req, res) => {
     const userMap = new Map();
     allUsers.forEach((u) => userMap.set(String(u.phone), u._id));
 
-    // Step 7: Find existing Dris users (avoid duplicates)
     const existingDrisUsers = await DrisModel.find(
       { phone: { $in: phones } },
       { phone: 1 },
     );
+
     const existingDrisPhones = existingDrisUsers.map((u) => String(u.phone));
 
-    // Step 8: Filter new Dris entries only
     const newUsers = data.filter((u) => !existingDrisPhones.includes(u.phone));
 
     if (newUsers.length === 0) {
+      await createLog({
+        user_name: admin?.name || "System",
+        role: admin?.name ? "admin" : "system",
+        action: `${admin?.name || "System"} attempted CSV import but no new users found`,
+      });
+
       return res.status(200).json({
         success: false,
         message: "No new users to insert (all phone numbers already exist)",
       });
     }
 
-    // Step 9: Add userId + id to each new Dris record
     const drisToInsert = newUsers.map((u) => ({
       ...u,
-      id: u.id || null, // from CSV
-      userId: userMap.get(String(u.phone)) || null, // from User model
-      user_id: userMap.get(String(u.phone)) || null, // from User model
+      id: u.id || null,
+      userId: userMap.get(String(u.phone)) || null,
+      user_id: userMap.get(String(u.phone)) || null,
     }));
-    // Step 10: Insert new records
+
     await DrisModel.insertMany(drisToInsert, { ordered: true });
+
     const kycToInsert = newUsers.map((u) => ({
       ...u,
-      id: u.id || null, // from CSV
-      userId: userMap.get(String(u.phone)) || null, // from User model
-      user_id: userMap.get(String(u.phone)) || null, // from User model
+      id: u.id || null,
+      userId: userMap.get(String(u.phone)) || null,
+      user_id: userMap.get(String(u.phone)) || null,
       status: "approve",
       userType: "existing",
     }));
+
     await KYCmodel.insertMany(kycToInsert, { ordered: true });
+
+    await createLog({
+      user_name: admin?.name || "System",
+      role: admin?.name ? "admin" : "system",
+      action: `${admin?.name || "System"} imported users via CSV | Inserted: ${drisToInsert.length}`,
+    });
+
     return res.status(200).json({
       success: true,
       message: "Users inserted successfully with id and userId",
@@ -104,6 +222,13 @@ exports.importUsersFromCSV = async (req, res) => {
     });
   } catch (err) {
     console.error("Insertion error:", err);
+
+    await createLog({
+      user_name: "System",
+      role: "system",
+      action: `Error during CSV user import -> ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: err.message,
@@ -111,7 +236,6 @@ exports.importUsersFromCSV = async (req, res) => {
     });
   }
 };
-
 //get all user list for admin
 exports.getUsersList = async (req, res) => {
   try {
@@ -418,14 +542,86 @@ exports.updateDriUserPhoneId = async (req, res, next) => {
 };
 
 //
+// exports.permanentDeleteUserData = async (req, res) => {
+//   try {
+//     const { userIds = [], phones = [] } = req.body;
+//     console.log(req.body);
+//     if (
+//       (!Array.isArray(userIds) || userIds.length === 0) &&
+//       (!Array.isArray(phones) || phones.length === 0)
+//     ) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No userIds or phones provided",
+//       });
+//     }
+
+//     let userIdFilter = userIds.length ? { userId: { $in: userIds } } : {};
+//     const user_idFilter = userIds.length ? { user_id: { $in: userIds } } : {};
+//     let phoneFilter = phones.length ? { phone: { $in: phones } } : {};
+//     if (req.body?.type === "kyc") {
+//       phoneFilter = phones.length ? { phone: { $in: phones } } : {};
+//       const userIds = await User.find(phoneFilter);
+//       const ids = userIds.map((id) => id?._id);
+//       userIdFilter = ids.length ? { userId: { $in: ids } } : {};
+//     }
+//     const kycFilter = {
+//       $or: [
+//         ...(phones.length ? [{ phone: { $in: phones } }] : []),
+//         ...(userIds.length ? [{ userId: { $in: userIds } }] : []),
+//         ...(userIds.length ? [{ user_id: { $in: userIds } }] : []),
+//       ],
+//     };
+//     // 💥 Promise.all: Run all deletions in parallel
+//     const results = await Promise.all([
+//       DrisModel.deleteMany(phoneFilter), // 1
+//       fcmTokenModel.deleteMany(userIdFilter), // 2
+//       NotificationModel.deleteMany(userIdFilter), // 4
+//       paidSubscriptionModel.deleteMany(userIdFilter), // 5
+//       subscriptionModel.deleteMany(userIdFilter), // 6
+//       User.deleteMany(phoneFilter), // 7
+//       userSavingsModel.deleteMany(user_idFilter), // 8
+//       advocateModel.updateMany(
+//         // 9: remove userIds from assignUsers array
+//         { assignUsers: { $in: userIds } },
+//         { $pull: { assignUsers: { $in: userIds } } },
+//       ),
+//       KYCmodel.deleteMany(kycFilter), // 3
+//     ]);
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "User and related data deleted permanently",
+//     });
+//   } catch (err) {
+//     console.error("Permanent delete error:", err);
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//       reason: err?.writeErrors?.[0]?.errmsg || "Something went wrong.",
+//     });
+//   }
+// };
+
 exports.permanentDeleteUserData = async (req, res) => {
   try {
+    const admin = await adminModel.findOne({}, "name");
+
+    const role = admin?.name ? "admin" : "system";
+    const user_name = admin?.name || "System";
+
     const { userIds = [], phones = [] } = req.body;
-    console.log(req.body);
+
     if (
       (!Array.isArray(userIds) || userIds.length === 0) &&
       (!Array.isArray(phones) || phones.length === 0)
     ) {
+      await createLog({
+        user_name,
+        role,
+        action: `${user_name} attempted permanent delete but no userIds or phones provided`,
+      });
+
       return res.status(400).json({
         success: false,
         message: "No userIds or phones provided",
@@ -435,12 +631,14 @@ exports.permanentDeleteUserData = async (req, res) => {
     let userIdFilter = userIds.length ? { userId: { $in: userIds } } : {};
     const user_idFilter = userIds.length ? { user_id: { $in: userIds } } : {};
     let phoneFilter = phones.length ? { phone: { $in: phones } } : {};
+
     if (req.body?.type === "kyc") {
       phoneFilter = phones.length ? { phone: { $in: phones } } : {};
-      const userIds = await User.find(phoneFilter);
-      const ids = userIds.map((id) => id?._id);
+      const userIdsData = await User.find(phoneFilter);
+      const ids = userIdsData.map((id) => id?._id);
       userIdFilter = ids.length ? { userId: { $in: ids } } : {};
     }
+
     const kycFilter = {
       $or: [
         ...(phones.length ? [{ phone: { $in: phones } }] : []),
@@ -448,22 +646,29 @@ exports.permanentDeleteUserData = async (req, res) => {
         ...(userIds.length ? [{ user_id: { $in: userIds } }] : []),
       ],
     };
-    // 💥 Promise.all: Run all deletions in parallel
+    const userList = await DrisModel.find(phoneFilter, "id");
+    const user_ids = userList.map((val) => val?.id);
+    console.log("users", user_ids);
     const results = await Promise.all([
-      DrisModel.deleteMany(phoneFilter), // 1
-      fcmTokenModel.deleteMany(userIdFilter), // 2
-      NotificationModel.deleteMany(userIdFilter), // 4
-      paidSubscriptionModel.deleteMany(userIdFilter), // 5
-      subscriptionModel.deleteMany(userIdFilter), // 6
-      User.deleteMany(phoneFilter), // 7
-      userSavingsModel.deleteMany(user_idFilter), // 8
+      DrisModel.deleteMany(phoneFilter),
+      fcmTokenModel.deleteMany(userIdFilter),
+      NotificationModel.deleteMany(userIdFilter),
+      paidSubscriptionModel.deleteMany(userIdFilter),
+      subscriptionModel.deleteMany(userIdFilter),
+      User.deleteMany(phoneFilter),
+      userSavingsModel.deleteMany(user_idFilter),
       advocateModel.updateMany(
-        // 9: remove userIds from assignUsers array
         { assignUsers: { $in: userIds } },
         { $pull: { assignUsers: { $in: userIds } } },
       ),
-      KYCmodel.deleteMany(kycFilter), // 3
+      KYCmodel.deleteMany(kycFilter),
     ]);
+
+    await createLog({
+      user_name,
+      role,
+      action: `${user_name} permanently deleted users data | Customer Id:${user_ids} `,
+    });
 
     return res.status(200).json({
       success: true,
@@ -471,6 +676,13 @@ exports.permanentDeleteUserData = async (req, res) => {
     });
   } catch (err) {
     console.error("Permanent delete error:", err);
+
+    await createLog({
+      user_name: "System",
+      role: "system",
+      action: `Error during permanent delete -> ${err.message}`,
+    });
+
     return res.status(500).json({
       success: false,
       message: err.message,
