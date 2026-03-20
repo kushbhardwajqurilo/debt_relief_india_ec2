@@ -44,6 +44,6 @@ driRoute.delete(
   permanentDeleteUserData,
 );
 
-driRoute.post("/add-meter", addMeterDetails);
+driRoute.post("/add-meter", AuthMiddleWare, addMeterDetails);
 driRoute.get("/get-meter", getDriMeterDetails);
 module.exports = driRoute;
