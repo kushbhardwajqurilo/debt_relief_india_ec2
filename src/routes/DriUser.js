@@ -13,6 +13,7 @@ const {
   updateDriUserPhoneId,
   permanentDeleteUserData,
 } = require("../controllers/DriUser");
+const { userEnquiryFeedback } = require("../controllers/userControll");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
@@ -46,4 +47,5 @@ driRoute.delete(
 
 driRoute.post("/add-meter", AuthMiddleWare, addMeterDetails);
 driRoute.get("/get-meter", getDriMeterDetails);
+driRoute.post("/feedback", userEnquiryFeedback);
 module.exports = driRoute;

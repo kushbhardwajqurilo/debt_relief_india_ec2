@@ -802,3 +802,40 @@ exports.updateUserProfilePicture = async (req, res) => {
       .json({ success: false, message: error.message, error });
   }
 };
+
+// User Enquiry || Feedback
+exports.userEnquiryFeedback = async (req, res, next) => {
+  try {
+    const requiredFields = [
+      "name",
+      "phone",
+      "email",
+      "city",
+      "employment_status",
+      "total_debt_value",
+      "call_back_time",
+      "language",
+      "call_type",
+      "message",
+    ];
+
+    for (let field of requiredFields) {
+      if (
+        req.body[field] === undefined ||
+        req.body[field] === null ||
+        String(req.body[field]).trim().length === 0
+      ) {
+        return res.status(400).json({
+          status: false,
+          message: `${field} is required`,
+        });
+      }
+    }
+    return res.status(200).json({
+      status: true,
+      message: "Your Request has been sent",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
