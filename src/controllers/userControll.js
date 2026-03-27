@@ -12,6 +12,7 @@ const { deleteFileFromS3, s3Client } = require("../config/aws-s3/s3Config");
 const DrisModel = require("../models/DriUserModel");
 const { createLog } = require("../utilitis/log");
 const logModel = require("../models/LogsModel");
+const sentMail = require("../utilitis/mail");
 const otpStore = {};
 exports.sendOTP = async (req, res) => {
   try {
@@ -39,7 +40,7 @@ exports.sendOTP = async (req, res) => {
 
     //     const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your OTP for Login is ${otp}. Please do not share this code with anyone. https://debtreliefindia.com/&route=TRANS&TemplateID=1707176285995736690
     // &format=JSON`;
-    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
+    // const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp}.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;   //main
 
     // const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=Your Debt Relief India Login code is ${otp.&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
     // const chars =
@@ -54,6 +55,11 @@ exports.sendOTP = async (req, res) => {
 
     // const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=${encodeURIComponent(message)}&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
 
+    const message = encodeURIComponent(
+      `<#> Your Debt Relief India login code is ${otp}\nPFuTBdIGceQ`,
+    );
+
+    const apiUrl = `https://www.alots.in/sms-panel/api/http/index.php?username=DEBTRELIEF&apikey=C4A0D-7B2C2&apirequest=Text&sender=DebtRI&mobile=${phone}&message=${message}&route=TRANS&TemplateID=1707176907356446576&format=JSON`;
     const response = await axios.get(apiUrl);
     if (response.data.status === "success") {
       return res.status(200).json({
@@ -531,7 +537,7 @@ exports.deleteUserSavings = async (req, res, next) => {
 // update user savings
 exports.updateUserSavings = async (req, res, next) => {
   try {
-    const user_id = req.params.user_id || req.query.user_id;
+    const user_id = req?.user_id || req.params.user_id || req.query.user_id;
     const { month, year, amount, saving_id } = req.body;
 
     if (!user_id) {
@@ -818,7 +824,6 @@ exports.userEnquiryFeedback = async (req, res, next) => {
       "call_type",
       "message",
     ];
-
     for (let field of requiredFields) {
       if (
         req.body[field] === undefined ||
@@ -831,6 +836,22 @@ exports.userEnquiryFeedback = async (req, res, next) => {
         });
       }
     }
+
+    const rawValue = req?.body?.total_debt_value;
+    const numberValue = Number(rawValue.replace(/,/g, ""));
+    const total_debt_value = numberValue.toLocaleString("en-IN");
+    await sentMail(
+      req?.body.name,
+      req?.body.phone,
+      req?.body?.email,
+      req?.body?.city,
+      req?.body?.employment_status,
+      total_debt_value,
+      req?.body?.call_back_time,
+      req?.body?.call_type,
+      req?.body?.language,
+      req?.body?.message,
+    );
     return res.status(200).json({
       status: true,
       message: "Your Request has been sent",

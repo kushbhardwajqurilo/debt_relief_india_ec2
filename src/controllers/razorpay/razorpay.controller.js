@@ -10,11 +10,13 @@ exports.PriorityCallPricePay = async (req, res, next) => {
       receipt: `receipt_${Date.now()}`,
     };
     const order = await razorpay.orders.create(options);
+    console.log("order", order);
     res.json({
       success: true,
       order,
     });
   } catch (error) {
+    console.log("error", error);
     return res.status(500).json({
       success: false,
       message: "Order Creation failed",
