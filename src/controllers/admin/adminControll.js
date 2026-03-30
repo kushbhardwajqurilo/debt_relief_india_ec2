@@ -19,6 +19,7 @@ const { default: axios } = require("axios");
 const logModel = require("../../models/LogsModel");
 const { createLog } = require("../../utilitis/log");
 const DriMeterModel = require("../../models/drimeterModel");
+const ReviewModel = require("../../models/reviewModel");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -1127,6 +1128,100 @@ exports.getDriMeterDetails = async (req, res, next) => {
     return res.status(500).json({
       status: false,
       message: error.message,
+    });
+  }
+};
+
+// allow users to review
+exports.AllowUsersForReview = async (req, res) => {
+  try {
+    const { google_review, trust_pilot, users } = req.body;
+
+    if (!google_review) {
+      return res.status(400).json({
+        status: false,
+        message: "Google review link required",
+      });
+    }
+
+    if (!trust_pilot) {
+      return res.status(400).json({
+        status: false,
+        message: "Trustpilot link required",
+      });
+    }
+
+    if (!Array.isArray(users) || users.length === 0) {
+      return res.status(400).json({
+        status: false,
+        message: "Users  required",
+      });
+    }
+
+    const review = await ReviewModel.findOneAndUpdate(
+      {}, // filter (you can also include trustpilot if needed)
+      {
+        $set: {
+          google_review,
+          trust_pilot: trust_pilot,
+          allow_users: users, // overwrite array
+        },
+      },
+      {
+        new: true, // updated doc return kare
+        upsert: true, // agar nahi mila to create kare
+      },
+    );
+
+    return res.status(200).json({
+      status: true,
+      message: "Review data saved successfully",
+    });
+  } catch (error) {
+    console.error("Error:", error);
+    return res.status(500).json({
+      status: false,
+      message: "Server error",
+    });
+  }
+};
+
+// get review to user
+exports.getReviewPermissionToUser = async (req, res) => {
+  try {
+    const { user_id } = req;
+    if (!user_id) {
+      return res.status(400).json({
+        status: false,
+        message: "User Id missig",
+      });
+    }
+    if (!mongoose.Types.ObjectId.isValid(user_id)) {
+      return res.status(400).json({
+        status: false,
+        message: "Invalid User Id",
+      });
+    }
+    const objId = new mongoose.Types.ObjectId(user_id);
+    const result = await ReviewModel.findOne({
+      allow_users: { $in: [objId] },
+    });
+    if (!result) {
+      return res.status(400).json({
+        status: false,
+        message: "Review Permission Not Allowed",
+        permission: false,
+      });
+    }
+    return res.status(200).json({
+      status: true,
+      message: "success",
+      permission: true,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      status: false,
+      message: `Review Error: ${error.message}`,
     });
   }
 };

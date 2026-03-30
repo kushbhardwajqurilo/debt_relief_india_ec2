@@ -2,6 +2,9 @@ const {
   sendNotificationToSingleUser,
 } = require("../config/expo-push-notification/expoNotification");
 const {
+  getReviewPermissionToUser,
+} = require("../controllers/admin/adminControll");
+const {
   userController,
   createUser,
   updateUser,
@@ -46,5 +49,10 @@ userRouter.patch(
   updateUserProfilePicture,
 );
 userRouter.post("/notification", sendNotificationToSingleUser);
-
+userRouter.get(
+  "/permission",
+  UserAuthMiddleWare,
+  roleAuthenticaton("user"),
+  getReviewPermissionToUser,
+);
 module.exports = userRouter;

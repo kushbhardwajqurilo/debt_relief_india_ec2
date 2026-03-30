@@ -22,6 +22,7 @@ const {
   getOtp,
   forgetPassword,
   getLogsDetails,
+  AllowUsersForReview,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -128,5 +129,13 @@ adminRouter.get(
   AuthMiddleWare,
   roleAuthenticaton("admin"),
   getLogsDetails,
+);
+
+// review add
+adminRouter.post(
+  "/review",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  AllowUsersForReview,
 );
 module.exports = adminRouter;
