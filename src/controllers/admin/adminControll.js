@@ -20,6 +20,7 @@ const logModel = require("../../models/LogsModel");
 const { createLog } = require("../../utilitis/log");
 const DriMeterModel = require("../../models/drimeterModel");
 const ReviewModel = require("../../models/reviewModel");
+const DrisModel = require("../../models/DriUserModel");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -1135,22 +1136,7 @@ exports.getDriMeterDetails = async (req, res, next) => {
 // allow users to review
 exports.AllowUsersForReview = async (req, res) => {
   try {
-    const { google_review, trust_pilot, users } = req.body;
-
-    if (!google_review) {
-      return res.status(400).json({
-        status: false,
-        message: "Google review link required",
-      });
-    }
-
-    if (!trust_pilot) {
-      return res.status(400).json({
-        status: false,
-        message: "Trustpilot link required",
-      });
-    }
-
+    const { users } = req.body;
     if (!Array.isArray(users) || users.length === 0) {
       return res.status(400).json({
         status: false,
@@ -1162,8 +1148,6 @@ exports.AllowUsersForReview = async (req, res) => {
       {}, // filter (you can also include trustpilot if needed)
       {
         $set: {
-          google_review,
-          trust_pilot: trust_pilot,
           allow_users: users, // overwrite array
         },
       },
@@ -1185,6 +1169,7 @@ exports.AllowUsersForReview = async (req, res) => {
     });
   }
 };
+// get users + names
 
 // get review to user
 exports.getReviewPermissionToUser = async (req, res) => {
@@ -1222,6 +1207,77 @@ exports.getReviewPermissionToUser = async (req, res) => {
     return res.status(400).json({
       status: false,
       message: `Review Error: ${error.message}`,
+    });
+  }
+};
+
+//  GET ALL USERS WITH PERMISSION
+exports.getReviewUsers = async (req, res) => {
+  try {
+    const users = await DrisModel.find().select("name phone");
+
+    let review = await ReviewModel.findOne();
+
+    // create doc if not exists
+    if (!review) {
+      review = await ReviewModel.create({});
+    }
+
+    const allowedUsers = review.allow_users.map((id) => id.toString());
+
+    const finalUsers = users.map((user) => ({
+      _id: user._id,
+      name: user.name,
+      phone: user.phone,
+      isAllowed: allowedUsers.includes(user._id.toString()),
+    }));
+
+    return res.json({
+      status: true,
+      data: finalUsers,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: false,
+      message: err.message,
+    });
+  }
+};
+
+//  TOGGLE USER PERMISSION
+exports.toggleReviewPermission = async (req, res) => {
+  try {
+    const { userId, allow } = req.body;
+
+    if (!userId) {
+      return res.json({
+        status: false,
+        message: "userId required",
+      });
+    }
+
+    let review = await ReviewModel.findOne();
+
+    if (!review) {
+      review = await ReviewModel.create({});
+    }
+
+    if (allow) {
+      await ReviewModel.updateOne({}, { $addToSet: { allow_users: userId } });
+    } else {
+      await ReviewModel.updateOne({}, { $pull: { allow_users: userId } });
+    }
+
+    return res.json({
+      status: true,
+      message: allow
+        ? "User Allowed Successfully"
+        : "User Blocked Successfully",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: false,
+      message: err.message,
     });
   }
 };

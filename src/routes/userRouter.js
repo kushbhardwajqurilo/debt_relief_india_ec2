@@ -3,6 +3,8 @@ const {
 } = require("../config/expo-push-notification/expoNotification");
 const {
   getReviewPermissionToUser,
+  getReviewUsers,
+  toggleReviewPermission,
 } = require("../controllers/admin/adminControll");
 const {
   userController,
@@ -54,5 +56,17 @@ userRouter.get(
   UserAuthMiddleWare,
   roleAuthenticaton("user"),
   getReviewPermissionToUser,
+);
+userRouter.get(
+  "/user",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  getReviewUsers,
+);
+userRouter.post(
+  "/toggle",
+  AuthMiddleWare,
+  roleAuthenticaton("admin"),
+  toggleReviewPermission,
 );
 module.exports = userRouter;
