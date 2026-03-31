@@ -1175,6 +1175,7 @@ exports.AllowUsersForReview = async (req, res) => {
 exports.getReviewPermissionToUser = async (req, res) => {
   try {
     const { user_id } = req;
+    console.log("userId", user_id);
     if (!user_id) {
       return res.status(400).json({
         status: false,
@@ -1192,8 +1193,8 @@ exports.getReviewPermissionToUser = async (req, res) => {
       allow_users: { $in: [objId] },
     });
     if (!result) {
-      return res.status(400).json({
-        status: false,
+      return res.status(200).json({
+        status: true,
         message: "Review Permission Not Allowed",
         permission: false,
       });
@@ -1214,8 +1215,8 @@ exports.getReviewPermissionToUser = async (req, res) => {
 //  GET ALL USERS WITH PERMISSION
 exports.getReviewUsers = async (req, res) => {
   try {
-    const users = await DrisModel.find().select("name phone");
-
+    const users = await DrisModel.find({}).select("name phone userId phone id");
+    console.log("users", users);
     let review = await ReviewModel.findOne();
 
     // create doc if not exists
@@ -1226,12 +1227,13 @@ exports.getReviewUsers = async (req, res) => {
     const allowedUsers = review.allow_users.map((id) => id.toString());
 
     const finalUsers = users.map((user) => ({
-      _id: user._id,
+      _id: user.userId,
+      driId: user.id,
       name: user.name,
       phone: user.phone,
       isAllowed: allowedUsers.includes(user._id.toString()),
     }));
-
+    console.log("fona;", finalUsers);
     return res.json({
       status: true,
       data: finalUsers,
@@ -1248,7 +1250,7 @@ exports.getReviewUsers = async (req, res) => {
 exports.toggleReviewPermission = async (req, res) => {
   try {
     const { userId, allow } = req.body;
-
+    console.log(userId);
     if (!userId) {
       return res.json({
         status: false,
