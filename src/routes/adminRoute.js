@@ -78,7 +78,12 @@ adminRouter.post(
 adminRouter.get("/getadminBanner", getAdminAnsLoginBanner);
 adminRouter.get("/adminProfileBanner", getAdminProfileAndBanner);
 // adminRouter.get("/login-background", getlo);
-adminRouter.post("/add-banks", UploadSingleImage.single("image"), addBanks);
+adminRouter.post(
+  "/add-banks",
+  AuthMiddleWare,
+  UploadSingleImage.single("image"),
+  addBanks,
+);
 adminRouter.get("/get-banks", AuthMiddleWare, getBanks);
 
 //regarding change password routes
