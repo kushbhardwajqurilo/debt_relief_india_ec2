@@ -1,6 +1,7 @@
 const BankModel = require("../../models/BankModel");
 const cloudinary = require("../../utilitis/cloudinary");
 const fs = require("fs");
+const { createLog } = require("../../utilitis/log");
 exports.addBanks = async (req, res) => {
   try {
     const { admin_id, role } = req;
