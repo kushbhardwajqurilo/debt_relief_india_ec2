@@ -84,7 +84,7 @@ adminRouter.post(
   UploadSingleImage.single("image"),
   addBanks,
 );
-adminRouter.get("/get-banks", AuthMiddleWare, getBanks);
+adminRouter.get("/get-banks", getBanks);
 
 //regarding change password routes
 adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);
