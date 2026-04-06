@@ -248,6 +248,12 @@ exports.marksAsPaid = async (req, res) => {
         .status(404)
         .json({ success: false, message: "User not found" });
     }
+    if (user.totalEmi === 0) {
+      return res.status(400).json({
+        status: false,
+        message: "No EMI's to pay",
+      });
+    }
     if (!user.dueDate || user.dueDate.length === 0) {
       return res
         .status(400)
@@ -259,7 +265,7 @@ exports.marksAsPaid = async (req, res) => {
         .status(200)
         .json({ success: false, message: "User Service Already Closed..." });
 
-    if (user.totalEmi == user.emiPay) {
+    if (user.totalEmi == 0) {
       user.status = "closed";
       await user.save();
       return res.status(400).json({ suceess: false, message: "All EMI Paid" });
@@ -318,7 +324,7 @@ exports.marksAsPaid = async (req, res) => {
 
     await user.save();
 
-    if (user.totalEmi === user.emiPay) {
+    if (user.totalEmi === 0) {
       user.status = "closed";
 
       const query = {
@@ -355,6 +361,13 @@ exports.marksAsPaid = async (req, res) => {
       role: admin?.name ? "admin" : "System",
       action: `Mark As Paid  for phone: ${phone} `,
     });
+    user.totalEmi = user.totalEmi - 1;
+    await user.save();
+    if (user.totalEmi === 0) {
+      user.status = "closed";
+      await user.save();
+    }
+    console.log("user after", user);
     return res.status(200).json({
       success: true,
       message: "Marked as Paid & Due Date Updated (+1 Month)",
@@ -1411,7 +1424,7 @@ exports.undoMarkAsPaid = async (req, res) => {
 
     user.dueDate = formatDDMMYYYY(previousDueDate);
     user.emiPay = user.emiPay - 1;
-
+    user.totalEmi = user.totalEmi + 1;
     await PaidService.findOneAndDelete({
       userId: user_id,
       emiNo: user.emiPay + 1,
@@ -1428,7 +1441,6 @@ exports.undoMarkAsPaid = async (req, res) => {
       role: "System",
       action: `Undo MarkAsPaid success (${phone})`,
     });
-
     return res.status(200).json({
       success: true,
       message: "Undo Successful (Due Date -1 Month & Last EMI Removed)",
