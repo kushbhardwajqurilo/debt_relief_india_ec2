@@ -1460,3 +1460,138 @@ exports.undoMarkAsPaid = async (req, res) => {
     });
   }
 };
+
+// mark as paid after payment
+exports.marksAsPaidAfterPayment = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone)
+      return res
+        .status(400)
+        .json({ success: false, message: "Phone number required" });
+    const user = await DrisModel.findOne({ phone });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    if (!user.dueDate || user.dueDate.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No DueDate Found" });
+    }
+
+    if (user.status === "closed")
+      return res
+        .status(200)
+        .json({ success: false, message: "User Service Already Closed..." });
+
+    if (user.totalEmi == 0) {
+      user.status = "closed";
+      await user.save();
+      return res.status(400).json({ suceess: false, message: "All EMI Paid" });
+    }
+    // 🔹 Helpers for date
+    const parseDDMMYYYY = (dateStr) => {
+      const [day, month, year] = dateStr?.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const formatDDMMYYYY = (date) => {
+      if (date) {
+        return `${String(date.getDate()).padStart(2, "0")}-${String(
+          date.getMonth() + 1,
+        ).padStart(2, "0")}-${date.getFullYear()}`;
+      } else {
+        return res.status(400).json({ success: false, message: "date issue" });
+      }
+    };
+
+    const formatDDMMYYYY_slash = (date) => {
+      return `${String(date.getDate()).padStart(2, "0")}/${String(
+        date.getMonth() + 1,
+      ).padStart(2, "0")}/${date.getFullYear()}`;
+    };
+
+    const addMonth = (date, months = 1) => {
+      const d = new Date(date);
+      const day = d.getDate();
+      d.setMonth(d.getMonth() + months);
+      if (d.getDate() !== day) d.setDate(0); // month rollover
+      return d;
+    };
+
+    // 🔹 Increment dueDate in DrisModel (DD-MM-YYYY)
+
+    const currentDate = parseDDMMYYYY(user.dueDate);
+    const newDueDate = addMonth(currentDate, 1);
+    user.dueDate = formatDDMMYYYY(newDueDate);
+    user.emiPay = user.emiPay + 1;
+
+    // 🔹 PaidService date in DD/MM/YYYY string (same as frontend)
+    const payload = {
+      userId: user?.userId,
+      serviceName: user.serviceFees ? "Service Fees" : "Service Advance",
+      emiNo: user.emiPay,
+      emiAmount: user.monthlyEmi,
+      date: formatDDMMYYYY_slash(currentDate), // use original dueDate in DD/MM/YYYY
+    };
+
+    const paidService = await PaidService.create(payload);
+    if (!paidService)
+      return res
+        .status(400)
+        .json({ success: false, message: "Mark Paid Failed" });
+
+    await user.save();
+
+    if (user.totalEmi === 0) {
+      user.status = "closed";
+
+      const query = {
+        $or: [
+          { user_id: new mongoose.Types.ObjectId(userId) },
+          { phone: phone },
+          { alternatePhone: phone },
+        ],
+      };
+
+      const update = {
+        $set: {
+          status: true,
+          user_id: new mongoose.Types.ObjectId(user?.userId),
+          phone: phone,
+          alternatePhone: phone,
+        },
+      };
+
+      // upsert = create if not exists
+      const paidModal = await padiDialBoxModel.findOneAndUpdate(query, update, {
+        new: true,
+        upsert: true,
+        runValidators: true,
+      });
+
+      // console.log("paidModal", paidModal);
+
+      await user.save();
+    }
+
+    user.totalEmi = user.totalEmi - 1;
+    await user.save();
+    if (user.totalEmi === 0) {
+      user.status = "closed";
+      await user.save();
+    }
+    console.log("user after", user);
+    return res.status(200).json({
+      success: true,
+      message: "Marked as Paid & Due Date Updated (+1 Month)",
+    });
+  } catch (err) {
+    console.error("Error in marksAsPaid:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: err.message, error: err.message });
+  }
+};

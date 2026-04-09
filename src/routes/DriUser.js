@@ -13,6 +13,9 @@ const {
   updateDriUserPhoneId,
   permanentDeleteUserData,
 } = require("../controllers/DriUser");
+const {
+  marksAsPaidAfterPayment,
+} = require("../controllers/EMISettlementController");
 const { userEnquiryFeedback } = require("../controllers/userControll");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const csvUpload = require("../middlewares/csvMiddleware");
@@ -48,4 +51,5 @@ driRoute.delete(
 driRoute.post("/add-meter", AuthMiddleWare, addMeterDetails);
 driRoute.get("/get-meter", getDriMeterDetails);
 driRoute.post("/feedback", userEnquiryFeedback);
+driRoute.post("/decreaseEmi", UserAuthMiddleWare, marksAsPaidAfterPayment);
 module.exports = driRoute;
