@@ -1464,6 +1464,7 @@ exports.undoMarkAsPaid = async (req, res) => {
 // mark as paid after payment
 exports.marksAsPaidAfterPayment = async (req, res) => {
   try {
+    console.log("heeloo mark as paid after payment", req.body);
     const { phone } = req.body;
     if (!phone)
       return res
