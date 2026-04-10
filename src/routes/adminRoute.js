@@ -23,6 +23,7 @@ const {
   forgetPassword,
   getLogsDetails,
   AllowUsersForReview,
+  settlementLetterPresignUrl,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -142,5 +143,12 @@ adminRouter.post(
   AuthMiddleWare,
   roleAuthenticaton("admin"),
   AllowUsersForReview,
+);
+
+// settlement letter routes
+adminRouter.post(
+  "/get-settlement-letter-url",
+  // AuthMiddleWare,
+  settlementLetterPresignUrl,
 );
 module.exports = adminRouter;

@@ -126,6 +126,7 @@ const creditCardSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  letterUrl: { type: String, default: null },
 });
 
 const personalLoanSchema = new mongoose.Schema({
@@ -155,6 +156,7 @@ const personalLoanSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  letterUrl: { type: String, default: null },
 });
 
 const userSchema = new mongoose.Schema({

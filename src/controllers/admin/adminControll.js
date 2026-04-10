@@ -21,6 +21,9 @@ const { createLog } = require("../../utilitis/log");
 const DriMeterModel = require("../../models/drimeterModel");
 const ReviewModel = require("../../models/reviewModel");
 const DrisModel = require("../../models/DriUserModel");
+const { PutObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const { s3Client } = require("../../config/aws-s3/s3Config");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -1280,6 +1283,49 @@ exports.toggleReviewPermission = async (req, res) => {
     return res.status(500).json({
       status: false,
       message: err.message,
+    });
+  }
+};
+
+// client settlement letter
+// presign url for settlement letter
+exports.settlementLetterPresignUrl = async (req, res, next) => {
+  try {
+    const { fileName } = req.body;
+    const key = `pdfs/${Date.now()}-${fileName}`;
+
+    const command = new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      // ContentType: "application/pdf",
+      ACL: "public-read",
+    });
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 120 });
+
+    return res.status(200).json({
+      success: true,
+      message: "success",
+      data: {
+        uploadUrl: url,
+        fileUrl: `https://${process.env.S3_BUCKET_NAME}.s3.amazonaws.com/${key}`,
+      },
+    });
+  } catch (error) {
+    console.log("settlement letter pre signed URL Error:", error);
+    res.status(500).json({ success: false, message: "Error Generating URL" });
+  }
+};
+exports.settlementLetterController = async (req, res) => {
+  try {
+    const { phone } = req;
+    if (!phone) {
+      return res.status(400).json({ status: false, message: "phone required" });
+    }
+  } catch (error) {
+    return res.status(500).json({
+      status: false,
+      message: "Something Went Wrong",
+      error: error.message,
     });
   }
 };

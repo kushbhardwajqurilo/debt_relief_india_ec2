@@ -933,7 +933,6 @@ exports.BultEmiInsert = async (req, res) => {
 exports.outstandingController = async (req, res) => {
   try {
     const admin = await adminModel.findOne({}, "name");
-
     const requiredFields = [
       "finaloutamount",
       "finalsettelement",
@@ -964,6 +963,7 @@ exports.outstandingController = async (req, res) => {
       finalsaving,
       phone,
       loanId,
+      settlementletter,
     } = req.body;
 
     const loanObjId = new mongoose.Types.ObjectId(loanId);
@@ -973,6 +973,7 @@ exports.outstandingController = async (req, res) => {
       finalSettelement: parseInt(finalsettelement),
       finalPercentage: Number(finalpercentage).toFixed(2),
       finalSavings: parseInt(finalsaving),
+      letterUrl: settlementletter,
     };
 
     const driUser = await DrisModel.findOne({ phone });
