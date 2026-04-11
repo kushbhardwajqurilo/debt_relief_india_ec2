@@ -24,6 +24,7 @@ const {
   getLogsDetails,
   AllowUsersForReview,
   settlementLetterPresignUrl,
+  settlementLetterNotificationController,
 } = require("../controllers/admin/adminControll");
 const { addBanks, getBanks } = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
@@ -150,5 +151,10 @@ adminRouter.post(
   "/get-settlement-letter-url",
   // AuthMiddleWare,
   settlementLetterPresignUrl,
+);
+
+adminRouter.post(
+  "/settlement-notification",
+  settlementLetterNotificationController,
 );
 module.exports = adminRouter;

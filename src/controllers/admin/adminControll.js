@@ -24,6 +24,10 @@ const DrisModel = require("../../models/DriUserModel");
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { s3Client } = require("../../config/aws-s3/s3Config");
+const {
+  sendNotificationToSingleUser,
+} = require("../../config/expo-push-notification/expoNotification");
+const fcmTokenModel = require("../../models/fcmTokenModel");
 const otpStores = {};
 
 exports.createAdmin = async (req, res) => {
@@ -1315,12 +1319,20 @@ exports.settlementLetterPresignUrl = async (req, res, next) => {
     res.status(500).json({ success: false, message: "Error Generating URL" });
   }
 };
-exports.settlementLetterController = async (req, res) => {
+exports.settlementLetterNotificationController = async (req, res) => {
   try {
-    const { phone } = req;
+    const { phone } = req.body;
     if (!phone) {
       return res.status(400).json({ status: false, message: "phone required" });
     }
+    const user = await User.findOne({ phone }, "_id");
+
+    const token = await fcmTokenModel.findOne({ userId: user?._id }, "token");
+    await sendNotificationToSingleUser(
+      token.token,
+      "Congrats! You have settled the obligation. Now you can download the settlement letter from app!",
+    );
+    return res.status(200).json({ status: true, message: "success" });
   } catch (error) {
     return res.status(500).json({
       status: false,
