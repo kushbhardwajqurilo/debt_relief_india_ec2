@@ -11,6 +11,9 @@ const {
   updateDueDates,
   undoMonthlySubscription,
 } = require("../controllers/admin/monthlySubsciption");
+const {
+  verifyPaymentAndUpdteMonthlySubscription,
+} = require("../controllers/razorpay/razorpay.controller");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const { roleAuthenticaton } = require("../middlewares/roleBaseAuthentication");
 const { UserAuthMiddleWare } = require("../middlewares/userMiddleware");
@@ -67,6 +70,10 @@ subscriptionRouter.put(
   "/undo-subscription",
   AuthMiddleWare,
   undoMonthlySubscription,
+);
+subscriptionRouter.post(
+  "/verify-subscription-payment",
+  verifyPaymentAndUpdteMonthlySubscription,
 );
 module.exports = subscriptionRouter;
 

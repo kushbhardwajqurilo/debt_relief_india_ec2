@@ -14,6 +14,7 @@ const {
 const userSavingsModel = require("../models/userSavingsModel");
 const { createLog } = require("../utilitis/log");
 const adminModel = require("../models/adminModel");
+const BankModel = require("../models/BankModel");
 // exports.importUsersFromCSV = async (req, res) => {
 //   try {
 //     if (!req.file) {
@@ -393,28 +394,87 @@ exports.getAssignAdvocate = async (req, res, next) => {
 };
 
 // get settlement advance
+// exports.getSettementAdvance = async (req, res, next) => {
+//   try {
+//     const { phone } = req.body;
+//     if (!phone) {
+//       return res.status(500).json({
+//         success: false,
+//         message: "phone number required",
+//       });
+//     }
+//     const settlement = await DrisModel.findOne({ phone });
+//     if (!settlement) {
+//       return res.status(500).json({
+//         success: false,
+//         message: "no advance emi found",
+//       });
+//     }
+//     return res.json(settlement);
+//   } catch (err) {
+//     return res.status(500).json({
+//       success: false,
+//       message: err.message,
+//       reason: err?.writeErrors?.[0]?.errmsg || "something went wrong.",
+//     });
+//   }
+// };
 exports.getSettementAdvance = async (req, res, next) => {
   try {
     const { phone } = req.body;
+
     if (!phone) {
-      return res.status(500).json({
+      return res.status(400).json({
         success: false,
         message: "phone number required",
       });
     }
-    const settlement = await DrisModel.findOne({ phone });
+
+    const settlement = await DrisModel.findOne({ phone }).lean();
+
     if (!settlement) {
-      return res.status(500).json({
+      return res.status(404).json({
         success: false,
         message: "no advance emi found",
       });
     }
-    return res.json(settlement);
+
+    //  Step 1: Get all unique bank names
+    const bankNames = [
+      ...new Set([
+        ...settlement.credit_Cards.map((c) => c.bank),
+        ...settlement.personal_Loans.map((p) => p.bank),
+      ]),
+    ];
+    // console.log("banks", bankNames);
+    //  Step 2: Fetch bank icons
+    const banks = await BankModel.find({}, "bankName icon").lean();
+    // Convert to map for fast lookup
+    const bankMap = {};
+    banks.forEach((b) => {
+      bankMap[b.bankName] = b.icon;
+    });
+
+    //  Step 3: Attach icon to credit cards
+    settlement.credit_Cards = settlement.credit_Cards.map((card) => ({
+      ...card,
+      bankIcon: bankMap[card.bank] || null,
+    }));
+
+    //  Step 4: Attach icon to personal loans
+    settlement.personal_Loans = settlement.personal_Loans.map((loan) => ({
+      ...loan,
+      bankIcon: bankMap[loan.bank] || null,
+    }));
+
+    return res.json({
+      success: true,
+      data: settlement,
+    });
   } catch (err) {
     return res.status(500).json({
       success: false,
       message: err.message,
-      reason: err?.writeErrors?.[0]?.errmsg || "something went wrong.",
     });
   }
 };

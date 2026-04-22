@@ -46,7 +46,6 @@ const paidSubscriptionSchema = new mongoose.Schema({
   adminId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "admin",
-    required: [true, "admin id required"],
   },
   subscriptionId: {
     type: mongoose.Schema.Types.ObjectId,
