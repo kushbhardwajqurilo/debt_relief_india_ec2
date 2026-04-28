@@ -822,7 +822,6 @@ exports.userEnquiryFeedback = async (req, res, next) => {
       "call_back_time",
       "language",
       "call_type",
-      "message",
     ];
     for (let field of requiredFields) {
       if (
