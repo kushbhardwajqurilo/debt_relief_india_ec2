@@ -849,7 +849,7 @@ exports.userEnquiryFeedback = async (req, res, next) => {
       req?.body?.call_back_time,
       req?.body?.call_type,
       req?.body?.language,
-      req?.body?.message,
+      req?.body?.message || "",
     );
     return res.status(200).json({
       status: true,
