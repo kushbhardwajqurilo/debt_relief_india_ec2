@@ -266,7 +266,7 @@ async function sentMail(
   const info = await transporter.sendMail({
     from: `"Debt Relief India" <${process.env.EMAIL}>`,
     to: process.env.EMAIL,
-    subject: `Debt Relief Meter / New Lead | ${name}`,
+    subject: `Debt Relief App / New Lead | ${name}`,
     html: htmlTemplate,
   });
   console.log("info", info);
