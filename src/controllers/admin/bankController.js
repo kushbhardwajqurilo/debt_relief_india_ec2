@@ -96,3 +96,30 @@ exports.getBanks = async (req, res) => {
     return res.status({ success: false, message: error.message, error });
   }
 };
+
+exports.updateBank = async (req, res) => {
+  const requiredFields = ["bankName", "icon", "id"];
+  console.log("update bank", req.body);
+  for (let fields of requiredFields) {
+    if (!req.body[fields] || req.body[fields].toString().trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `${fields} is missing`,
+      });
+    }
+  }
+  const { bankName, icon, id } = req.body;
+  const result = await BankModel.updateOne(
+    { _id: id },
+    { $set: { bankName, icon } },
+  );
+  if (result?.modifiedCount == 0) {
+    return res
+      .status(400)
+      .json({ success: false, message: "failed to update bank" });
+  }
+  return res.status(201).json({
+    success: true,
+    message: "bank updated",
+  });
+};

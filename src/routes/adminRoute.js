@@ -26,7 +26,11 @@ const {
   settlementLetterPresignUrl,
   settlementLetterNotificationController,
 } = require("../controllers/admin/adminControll");
-const { addBanks, getBanks } = require("../controllers/admin/bankController");
+const {
+  addBanks,
+  getBanks,
+  updateBank,
+} = require("../controllers/admin/bankController");
 const { AuthMiddleWare } = require("../middlewares/adminMiddleware");
 const upload = require("../middlewares/bannerMiddleware");
 const {
@@ -87,6 +91,7 @@ adminRouter.post(
   addBanks,
 );
 adminRouter.get("/get-banks", getBanks);
+adminRouter.put("/update-banks", updateBank);
 
 //regarding change password routes
 adminRouter.post("/request-otp", AuthMiddleWare, requestOtp);

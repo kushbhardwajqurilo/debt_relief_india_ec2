@@ -1240,7 +1240,6 @@ exports.getReviewUsers = async (req, res) => {
       phone: user.phone,
       isAllowed: allowedUsers.includes(user._id.toString()),
     }));
-    console.log("fona;", finalUsers);
     return res.json({
       status: true,
       data: finalUsers,
