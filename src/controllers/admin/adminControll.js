@@ -1098,7 +1098,7 @@ exports.addMeterDetails = async (req, res, next) => {
       enroll_fees: Number(req.body.enroll_fees),
       harashment_plan: Number(req.body.harashment_plan),
     };
-    console.log(payload);
+    // console.log(payload);
     const driMeter = await DriMeterModel.findOneAndUpdate(
       {},
       { $set: payload },
@@ -1223,7 +1223,7 @@ exports.getReviewPermissionToUser = async (req, res) => {
 exports.getReviewUsers = async (req, res) => {
   try {
     const users = await DrisModel.find({}).select("name phone userId phone id");
-    console.log("users", users);
+    // console.log("users", users);
     let review = await ReviewModel.findOne();
 
     // create doc if not exists
@@ -1256,7 +1256,7 @@ exports.getReviewUsers = async (req, res) => {
 exports.toggleReviewPermission = async (req, res) => {
   try {
     const { userId, allow } = req.body;
-    console.log(userId);
+    // console.log(userId);
     if (!userId) {
       return res.json({
         status: false,

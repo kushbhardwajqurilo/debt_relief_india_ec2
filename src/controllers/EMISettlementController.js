@@ -23,6 +23,7 @@ const PaidService = require("../models/paidServicesModel");
 const padiDialBoxModel = require("../models/paidDialogBoxModel");
 const { createLog } = require("../utilitis/log");
 const adminModel = require("../models/adminModel");
+const path = require("path");
 
 exports.EMIPayment = async (req, res, next) => {
   try {
@@ -404,7 +405,7 @@ exports.createTestEmi = async (req, res) => {
         row["Client Name"] === "Client Name" && row["Phone"] === "Phone";
       return !isHeaderRow;
     });
-
+    console.log("clean data", cleanData);
     // Group by client name
     const grouped = {};
     let currentClientName = null;
@@ -539,9 +540,10 @@ exports.createTestEmi = async (req, res) => {
     if (userData.totalEmi === 0 && userData.monthlyEmi === 0) {
       status = "N/A";
     }
-
+    console.log("csv user data", userData);
     // Find existing user by phone
     let user = await DrisModel.findOne({ phone: matchedClient.phone });
+    console.log("dris User", user);
 
     if (user) {
       if (user.insert === true) {
@@ -600,9 +602,245 @@ exports.createTestEmi = async (req, res) => {
   }
 };
 
+// exports.BultEmiInsert = async (req, res) => {
+//   try {
+//     const admin = await adminModel.findOne({}, "name");
+//     if (!admin) {
+//       await createLog({
+//         user_name: admin?.name ?? "System",
+//         role: admin?.name ? "admin" : "System",
+//         action: "Action performed for Bulk EMI Insert",
+//       });
+//     }
+//     const filePath = req.file.path;
+//     const jsonArray = await csv().fromFile(filePath);
+
+//     // ✅ Clean CSV data
+//     const cleanData = jsonArray.filter((row) => {
+//       const isEmptyRow = Object.values(row).every(
+//         (value) => !value || value.toString().trim() === "",
+//       );
+//       if (isEmptyRow) return false;
+
+//       const isHeaderRow =
+//         row["Client Name"] === "Client Name" && row["Phone"] === "Phone";
+//       return !isHeaderRow;
+//     });
+
+//     // ✅ Group by client name
+//     const grouped = {};
+//     let currentClientName = null;
+
+//     cleanData.forEach((row) => {
+//       if (row["Client Name"] && row["Client Name"].trim() !== "") {
+//         currentClientName = row["Client Name"].trim();
+
+//         if (!grouped[currentClientName]) {
+//           grouped[currentClientName] = {
+//             clientName: currentClientName,
+//             phone: row["Phone"] || "",
+//             fees: row["Fees %"] || "",
+//             gst: row["GST %"] || "",
+//             insert: row["Insert"] === "true" || false,
+//             details: {
+//               fees: row["Fees %"] || "",
+//               gst: row["GST %"] || "",
+//               serviceFees:
+//                 row["Service Fees"] && row["Service Fees"].trim() !== "0"
+//                   ? row["Service Fees"]
+//                   : "",
+//               monthlySubscription: row["Monthly Subscription"] || "",
+//               settlementAdvance:
+//                 row["Settlement Advance"] &&
+//                 row["Settlement Advance"].trim() !== "0"
+//                   ? row["Settlement Advance"]
+//                   : "",
+//               monthlyFees: row["Monthly Fees"] || "",
+//               settlementPercent: row["Settlement Percentage"] || "",
+//               noOfEmi: row["No Of EMI"] || "",
+//               emiAmount: row["EMI Amount"] || "",
+//               dueDate: row["Due Date"] || "", // default
+//             },
+//             creditCards: [],
+//             personalLoans: [],
+//           };
+//         }
+//       }
+
+//       if (!currentClientName) return;
+//       const client = grouped[currentClientName];
+
+//       // ✅ Always update dueDate if row has value
+//       if (row["Due Date"] && row["Due Date"].trim() !== "") {
+//         client.details.dueDate = row["Due Date"].trim();
+//       }
+
+//       // ✅ Credit Card
+//       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
+//         const amount = parseFloat(row["Amount"] || 0);
+//         const settlementPercent = parseFloat(row["CC Settlement"] || 0);
+//         const estimatedSettlement = (amount * settlementPercent) / 100;
+//         const estimatedSaving = amount - estimatedSettlement;
+
+//         client.creditCards.push({
+//           bank: row["Credit Card"],
+//           amount,
+//           settlement: settlementPercent,
+//           total: row["CC Total"] || "",
+//           estimatedSettlement,
+//           saving: estimatedSaving,
+//           finalOutstandingAmount: "",
+//           finalSettelement: "",
+//           finalPercentage: "",
+//           finalSavings: "",
+//           isOutstanding: true,
+//         });
+//       }
+
+//       // ✅ Personal Loan
+//       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
+//         const amount = parseFloat(row["PL Amount"] || 0);
+//         const settlementPercent = parseFloat(row["PL Settlement"] || 0);
+//         const estimatedSettlement = (amount * settlementPercent) / 100;
+//         const estimatedSaving = amount - estimatedSettlement;
+
+//         client.personalLoans.push({
+//           bank: row["Personal Loan"],
+//           amount,
+//           settlement: settlementPercent,
+//           total: row["PL Total"] || "",
+//           estimatedSettlement,
+//           saving: estimatedSaving,
+//           finalOutstandingAmount: "",
+//           finalSettelement: "",
+//           finalPercentage: "",
+//           finalSavings: "",
+//           isOutstanding: true,
+//         });
+//       }
+//     });
+
+//     const allClients = Object.values(grouped);
+//     // console.log("allcllient", allClients);
+//     const bulkOps = [];
+//     const notificationTasks = [];
+//     for (const client of allClients) {
+//       console.log("client", {
+//         name: client?.clientName,
+//         phone: client.phone,
+//         due_date: client.details.dueDate,
+//       });
+//       if (client.insert === true) continue;
+
+//       const existingUser = await DrisModel.findOne({ phone: client.phone });
+//       if (!existingUser) {
+//         // console.log(`⚠️ User with phone ${client.phone} not found. Skipping.`);
+//         continue;
+//       }
+
+//       const creditTotal = client.creditCards.reduce(
+//         (sum, card) => sum + (parseFloat(card.total) || 0),
+//         0,
+//       );
+//       const plTotal = client.personalLoans.reduce(
+//         (sum, loan) => sum + (parseFloat(loan.total) || 0),
+//         0,
+//       );
+
+//       const userData = {
+//         name: client.clientName,
+//         phone: client.phone,
+//         fees: client.details.fees,
+//         gst: client.details.gst,
+//         credit_Cards: client.creditCards,
+//         CreditTotal: creditTotal.toString(),
+//         personal_Loans: client.personalLoans,
+//         PL_Total: plTotal.toString(),
+//         Service_Fees: client.details.serviceFees || "",
+//         Service_Advance_Total: client.details.settlementAdvance || "",
+//         Settlement_Percent: client.details.settlementPercent,
+//         totalEmi: parseInt(client.details.noOfEmi || "0"),
+//         monthlyEmi: parseFloat(client.details.emiAmount || "0"),
+//         dueDate: client.details.dueDate || "",
+//         insert: true,
+//         status: "pending",
+//       };
+
+//       // ✅ Update user data
+//       bulkOps.push({
+//         updateOne: {
+//           filter: { phone: client.phone },
+//           update: { $set: userData },
+//           upsert: false,
+//         },
+//       });
+
+//       // ✅ Fetch notification template safely
+//       const message = await customeNoticationModel.find({});
+//       const emiMsg = message[0]?.Emi_Notification;
+//       // ✅ Prepare notification task
+//       notificationTasks.push(async () => {
+//         try {
+//           const token = await getSingleUserToken(client.phone);
+//           if (token.status === true && token.userId) {
+//             await sendNotificationToSingleUser(
+//               token.token,
+//               emiMsg,
+//               "Debt Relief India",
+//               "emi",
+//             );
+//             await createNotification(
+//               token.userId,
+//               "Debt Relief India",
+//               emiMsg,
+//               "emi",
+//             );
+//           } else {
+//             console.log("⚠️ No valid token for", client.phone);
+//           }
+//         } catch (err) {
+//           console.log(
+//             "❌ Error sending notification for",
+//             client.phone,
+//             err.message,
+//           );
+//         }
+//       });
+//     }
+
+//     // ✅ Bulk update all users
+//     if (bulkOps.length > 0) {
+//       await DrisModel.bulkWrite(bulkOps);
+//     }
+
+//     // ✅ Execute notifications in small batches
+//     // console.log("📤 Total notifications to send:", notificationTasks.length);
+//     for (let i = 0; i < notificationTasks.length; i += 10) {
+//       const batch = notificationTasks.slice(i, i + 10);
+//       await Promise.all(batch.map((task) => task()));
+//     }
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "EMI processing completed successfully",
+//       totalProcessed: bulkOps.length,
+//       totalNotifications: notificationTasks.length,
+//       totalSkipped: allClients.filter((c) => c.insert === true).length,
+//     });
+//   } catch (error) {
+//     console.log("❌ Error processing CSV:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error while processing CSV",
+//       error: error.message,
+//     });
+//   }
+// };
+
 exports.BultEmiInsert = async (req, res) => {
   try {
     const admin = await adminModel.findOne({}, "name");
+
     if (!admin) {
       await createLog({
         user_name: admin?.name ?? "System",
@@ -610,171 +848,280 @@ exports.BultEmiInsert = async (req, res) => {
         action: "Action performed for Bulk EMI Insert",
       });
     }
+
     const filePath = req.file.path;
+
     const jsonArray = await csv().fromFile(filePath);
 
-    // ✅ Clean CSV data
+    //  Remove empty/header rows
     const cleanData = jsonArray.filter((row) => {
       const isEmptyRow = Object.values(row).every(
         (value) => !value || value.toString().trim() === "",
       );
+
       if (isEmptyRow) return false;
 
       const isHeaderRow =
         row["Client Name"] === "Client Name" && row["Phone"] === "Phone";
+
       return !isHeaderRow;
     });
 
-    // ✅ Group by client name
+    //  Group by PHONE (NOT NAME)
     const grouped = {};
-    let currentClientName = null;
 
-    cleanData.forEach((row) => {
-      if (row["Client Name"] && row["Client Name"].trim() !== "") {
-        currentClientName = row["Client Name"].trim();
+    let currentPhone = null;
 
-        if (!grouped[currentClientName]) {
-          grouped[currentClientName] = {
-            clientName: currentClientName,
-            phone: row["Phone"] || "",
+    cleanDta.forEach((row) => {
+      //  New user starts when phone exists
+      if (row["Phone"] && row["Phone"].trim() !== "") {
+        currentPhone = row["Phone"].trim();
+
+        //  Create user only if not already exists
+        if (!grouped[currentPhone]) {
+          grouped[currentPhone] = {
+            clientName: row["Client Name"]?.trim() || "",
+            phone: currentPhone,
+
             fees: row["Fees %"] || "",
             gst: row["GST %"] || "",
-            insert: row["Insert"] === "true" || false,
+
+            insert: row["Insert"] === true || row["Insert"] === "true",
+
             details: {
               fees: row["Fees %"] || "",
               gst: row["GST %"] || "",
+
               serviceFees:
                 row["Service Fees"] && row["Service Fees"].trim() !== "0"
                   ? row["Service Fees"]
                   : "",
+
               monthlySubscription: row["Monthly Subscription"] || "",
+
               settlementAdvance:
                 row["Settlement Advance"] &&
                 row["Settlement Advance"].trim() !== "0"
                   ? row["Settlement Advance"]
                   : "",
+
               monthlyFees: row["Monthly Fees"] || "",
+
               settlementPercent: row["Settlement Percentage"] || "",
+
               noOfEmi: row["No Of EMI"] || "",
+
               emiAmount: row["EMI Amount"] || "",
-              dueDate: row["Due Date"] || "", // default
+
+              dueDate: row["Due Date"] || "",
             },
+
             creditCards: [],
             personalLoans: [],
           };
         }
       }
 
-      if (!currentClientName) return;
-      const client = grouped[currentClientName];
+      //  Skip invalid rows
+      if (!currentPhone) return;
 
-      // ✅ Always update dueDate if row has value
+      const client = grouped[currentPhone];
+
+      //  Always update due date if exists
       if (row["Due Date"] && row["Due Date"].trim() !== "") {
         client.details.dueDate = row["Due Date"].trim();
       }
 
-      // ✅ Credit Card
+      // ======================================================
+      //  CREDIT CARD
+      // ======================================================
+
       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
         const amount = parseFloat(row["Amount"] || 0);
+
         const settlementPercent = parseFloat(row["CC Settlement"] || 0);
+
         const estimatedSettlement = (amount * settlementPercent) / 100;
+
         const estimatedSaving = amount - estimatedSettlement;
 
         client.creditCards.push({
           bank: row["Credit Card"],
+
           amount,
+
           settlement: settlementPercent,
+
           total: row["CC Total"] || "",
+
           estimatedSettlement,
+
           saving: estimatedSaving,
+
           finalOutstandingAmount: "",
+
           finalSettelement: "",
+
           finalPercentage: "",
+
           finalSavings: "",
+
           isOutstanding: true,
         });
       }
 
-      // ✅ Personal Loan
+      // ======================================================
+      //  PERSONAL LOAN
+      // ======================================================
+
       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
         const amount = parseFloat(row["PL Amount"] || 0);
+
         const settlementPercent = parseFloat(row["PL Settlement"] || 0);
+
         const estimatedSettlement = (amount * settlementPercent) / 100;
+
         const estimatedSaving = amount - estimatedSettlement;
 
         client.personalLoans.push({
           bank: row["Personal Loan"],
+
           amount,
+
           settlement: settlementPercent,
+
           total: row["PL Total"] || "",
+
           estimatedSettlement,
+
           saving: estimatedSaving,
+
           finalOutstandingAmount: "",
+
           finalSettelement: "",
+
           finalPercentage: "",
+
           finalSavings: "",
+
           isOutstanding: true,
         });
       }
     });
 
+    // ======================================================
+    //  FINAL CLIENT ARRAY
+    // ======================================================
+
     const allClients = Object.values(grouped);
+
     const bulkOps = [];
+
     const notificationTasks = [];
 
     for (const client of allClients) {
+      // console.log("client =>", {
+      //   name: client?.clientName,
+      //   phone: client?.phone,
+      //   due_date: client?.details?.dueDate,
+      // });
+
+      //  Skip already inserted users
       if (client.insert === true) continue;
 
-      const existingUser = await DrisModel.findOne({ phone: client.phone });
+      //  Check existing user
+      const existingUser = await DrisModel.findOne({
+        phone: client.phone,
+      });
+
       if (!existingUser) {
-        console.log(`⚠️ User with phone ${client.phone} not found. Skipping.`);
+        console.log(`⚠️ User with phone ${client.phone} not found`);
+
         continue;
       }
+
+      // ======================================================
+      //  TOTALS
+      // ======================================================
 
       const creditTotal = client.creditCards.reduce(
         (sum, card) => sum + (parseFloat(card.total) || 0),
         0,
       );
+
       const plTotal = client.personalLoans.reduce(
         (sum, loan) => sum + (parseFloat(loan.total) || 0),
         0,
       );
 
+      // ======================================================
+      //  FINAL USER DATA
+      // ======================================================
+
       const userData = {
         name: client.clientName,
+
         phone: client.phone,
+
         fees: client.details.fees,
+
         gst: client.details.gst,
+
         credit_Cards: client.creditCards,
+
         CreditTotal: creditTotal.toString(),
+
         personal_Loans: client.personalLoans,
+
         PL_Total: plTotal.toString(),
+
         Service_Fees: client.details.serviceFees || "",
+
         Service_Advance_Total: client.details.settlementAdvance || "",
+
         Settlement_Percent: client.details.settlementPercent,
+
         totalEmi: parseInt(client.details.noOfEmi || "0"),
+
         monthlyEmi: parseFloat(client.details.emiAmount || "0"),
+
         dueDate: client.details.dueDate || "",
+
         insert: true,
+
         status: "pending",
       };
 
-      // ✅ Update user data
+      // ======================================================
+      // ✅ BULK UPDATE
+      // ======================================================
+
       bulkOps.push({
         updateOne: {
-          filter: { phone: client.phone },
-          update: { $set: userData },
+          filter: {
+            phone: client.phone,
+          },
+
+          update: {
+            $set: userData,
+          },
+
           upsert: false,
         },
       });
 
-      // ✅ Fetch notification template safely
+      // ======================================================
+      // ✅ NOTIFICATIONS
+      // ======================================================
+
       const message = await customeNoticationModel.find({});
-      const emiMsg = message[0]?.Emi_Notification;
-      // ✅ Prepare notification task
+
+      const emiMsg = message?.[0]?.Emi_Notification || "";
+
       notificationTasks.push(async () => {
         try {
           const token = await getSingleUserToken(client.phone);
+
           if (token.status === true && token.userId) {
             await sendNotificationToSingleUser(
               token.token,
@@ -782,6 +1129,7 @@ exports.BultEmiInsert = async (req, res) => {
               "Debt Relief India",
               "emi",
             );
+
             await createNotification(
               token.userId,
               "Debt Relief India",
@@ -801,30 +1149,46 @@ exports.BultEmiInsert = async (req, res) => {
       });
     }
 
-    // ✅ Bulk update all users
+    // ======================================================
+    //  EXECUTE BULK WRITE
+    // ======================================================
+
     if (bulkOps.length > 0) {
       await DrisModel.bulkWrite(bulkOps);
     }
 
-    // ✅ Execute notifications in small batches
-    // console.log("📤 Total notifications to send:", notificationTasks.length);
+    // ======================================================
+    //  SEND NOTIFICATIONS IN BATCHES
+    // ======================================================
+
     for (let i = 0; i < notificationTasks.length; i += 10) {
       const batch = notificationTasks.slice(i, i + 10);
+
       await Promise.all(batch.map((task) => task()));
     }
 
+    // ======================================================
+    //  RESPONSE
+    // ======================================================
     return res.status(201).json({
       success: true,
+
       message: "EMI processing completed successfully",
+
       totalProcessed: bulkOps.length,
+
       totalNotifications: notificationTasks.length,
+
       totalSkipped: allClients.filter((c) => c.insert === true).length,
     });
   } catch (error) {
     console.log("❌ Error processing CSV:", error);
+
     return res.status(500).json({
       success: false,
+
       message: "Error while processing CSV",
+
       error: error.message,
     });
   }
