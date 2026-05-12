@@ -872,7 +872,7 @@ exports.BultEmiInsert = async (req, res) => {
 
     let currentPhone = null;
 
-    cleanDta.forEach((row) => {
+    cleanData.forEach((row) => {
       //  New user starts when phone exists
       if (row["Phone"] && row["Phone"].trim() !== "") {
         currentPhone = row["Phone"].trim();
