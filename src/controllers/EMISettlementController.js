@@ -388,127 +388,407 @@ exports.marksAsPaid = async (req, res) => {
 
 //  test
 
+// exports.createTestEmi = async (req, res) => {
+//   try {
+//     const filePath = req.file.path;
+//     const { phone } = req.body;
+//     const jsonArray = await csv().fromFile(filePath);
+
+//     // Clean CSV
+//     const cleanData = jsonArray.filter((row) => {
+//       const isEmptyRow = Object.values(row).every(
+//         (value) => !value || value.toString().trim() === "",
+//       );
+//       if (isEmptyRow) return false;
+
+//       const isHeaderRow =
+//         row["Client Name"] === "Client Name" && row["Phone"] === "Phone";
+//       return !isHeaderRow;
+//     });
+//     console.log("clean data", cleanData);
+//     // Group by client name
+//     const grouped = {};
+//     let currentClientName = null;
+
+//     cleanData.forEach((row) => {
+//       if (row["Client Name"] && row["Client Name"].trim() !== "") {
+//         currentClientName = row["Client Name"].trim();
+
+//         if (!grouped[currentClientName]) {
+//           grouped[currentClientName] = {
+//             clientName: currentClientName,
+//             phone: row["Phone"] || "",
+//             insert: row["Insert"] === "true" || false,
+//             details: {
+//               serviceFees:
+//                 row["Service Fees"] && row["Service Fees"].trim() !== "0"
+//                   ? row["Service Fees"]
+//                   : "",
+//               monthlySubscription: row["Monthly Subscription"] || "",
+//               settlementAdvance:
+//                 row["Settlement Advance"] &&
+//                 row["Settlement Advance"].trim() !== "0"
+//                   ? row["Settlement Advance"]
+//                   : "",
+//               monthlyFees: row["Monthly Fees"] || "",
+//               settlementPercent: row["Settlement Percentage"] || "",
+//               noOfEmi: row["No Of EMI"] || "",
+//               emiAmount: row["EMI Amount"] || "",
+//               dueDate: "", // initialize empty
+//             },
+//             creditCards: [],
+//             personalLoans: [],
+//           };
+//         }
+//       }
+
+//       if (!currentClientName) return;
+
+//       const client = grouped[currentClientName];
+
+//       // --- Conditional dueDate assignment ---
+//       if (row["Due Date"] && row["Due Date"].trim() !== "") {
+//         client.details.dueDate = row["Due Date"].trim();
+//       }
+
+//       // Credit Card handling
+//       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
+//         const amount = parseFloat(row["Amount"] || 0);
+//         const settlementPercent = parseFloat(row["CC Settlement"] || 0);
+//         const estimatedSettlement = (amount * settlementPercent) / 100;
+//         const estimatedSaving = amount - estimatedSettlement;
+
+//         client.creditCards.push({
+//           bank: row["Credit Card"],
+//           amount: amount,
+//           settlement: settlementPercent,
+//           total: row["CC Total"] || "",
+//           estimatedSettlement: estimatedSettlement,
+//           saving: estimatedSaving,
+//           finalOutstandingAmount: "",
+//           finalSettelement: "",
+//           finalPercentage: "",
+//           finalSavings: "",
+//           isOutstanding: true,
+//         });
+//       }
+
+//       // Personal Loan handling
+//       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
+//         const amount = parseFloat(row["PL Amount"] || 0);
+//         const settlementPercent = parseFloat(row["PL Settlement"] || 0);
+//         const estimatedSettlement = (amount * settlementPercent) / 100;
+//         const estimatedSaving = amount - estimatedSettlement;
+
+//         client.personalLoans.push({
+//           bank: row["Personal Loan"],
+//           amount: amount,
+//           settlement: settlementPercent,
+//           total: row["PL Total"] || "",
+//           estimatedSettlement: estimatedSettlement,
+//           saving: estimatedSaving,
+//           finalOutstandingAmount: "",
+//           finalSettelement: "",
+//           finalPercentage: "",
+//           finalSavings: "",
+//           isOutstanding: true,
+//         });
+//       }
+//     });
+
+//     // Find matched client by phone
+//     let matchedClient = Object.values(grouped).find(
+//       (client) => client.phone === phone,
+//     );
+
+//     if (!matchedClient) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "No client found in CSV with provided phone",
+//       });
+//     }
+
+//     // Calculate totals
+//     const creditTotal = matchedClient.creditCards.reduce(
+//       (sum, card) => sum + (parseFloat(card.total) || 0),
+//       0,
+//     );
+
+//     const plTotal = matchedClient.personalLoans.reduce(
+//       (sum, loan) => sum + (parseFloat(loan.total) || 0),
+//       0,
+//     );
+
+//     const userData = {
+//       name: matchedClient.clientName,
+//       phone: matchedClient.phone,
+//       credit_Cards: matchedClient.creditCards,
+//       CreditTotal: creditTotal.toString(),
+//       personal_Loans: matchedClient.personalLoans,
+//       PL_Total: plTotal.toString(),
+//       Service_Fees: matchedClient.details.serviceFees || "",
+//       Service_Advance_Total: matchedClient.details.settlementAdvance || "",
+//       Settlement_Percent: matchedClient.details.settlementPercent,
+//       totalEmi: parseInt(matchedClient.details.noOfEmi || "0"),
+//       monthlyEmi: parseFloat(matchedClient.details.emiAmount || "0"),
+//       dueDate: matchedClient.details.dueDate,
+//       insert: true,
+//     };
+
+//     // Status
+//     let status = "pending";
+//     if (userData.totalEmi === 0 && userData.monthlyEmi === 0) {
+//       status = "N/A";
+//     }
+//     console.log("csv user data", userData);
+//     // Find existing user by phone
+//     let user = await DrisModel.findOne({ phone: matchedClient.phone });
+//     console.log("dris User", user);
+
+//     if (user) {
+//       if (user.insert === true) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Settlements Already Inserted",
+//         });
+//       }
+
+//       // Update existing user
+//       Object.assign(user, userData);
+//       user.status = status;
+//       await user.save();
+//     } else {
+//       // New user insert only if insert !== true
+//       if (userData.insert === true) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Insertion not allowed ",
+//         });
+//       }
+
+//       user = new DrisModel({ ...userData, status });
+//       await user.save();
+//     }
+//     const message = await customeNoticationModel.find({});
+//     const emiMsg = message[0]?.Emi_Notification;
+//     // Notification
+//     const token = await getSingleUserToken(phone);
+//     if (token.status === true && token.userId) {
+//       await sendNotificationToSingleUser(
+//         token.token,
+//         emiMsg,
+//         "Debt Relief India",
+//         "emi",
+//       );
+//       await createNotification(
+//         token.userId,
+//         "Debt Relief India",
+//         emiMsg,
+//         "emi",
+//       );
+//     }
+
+//     return res.status(201).json({
+//       success: true,
+//       message: "EMI uploaded successfully for provided phone",
+//     });
+//   } catch (error) {
+//     console.error("Error parsing CSV:", error);
+//     return res.status(500).json({
+//       success: false,
+//       message: "Error while parsing CSV",
+//       error: error.message,
+//     });
+//   }
+// };
+
 exports.createTestEmi = async (req, res) => {
   try {
     const filePath = req.file.path;
+
     const { phone } = req.body;
+
     const jsonArray = await csv().fromFile(filePath);
 
-    // Clean CSV
+    // ======================================================
+    // CLEAN CSV
+    // ======================================================
+
     const cleanData = jsonArray.filter((row) => {
       const isEmptyRow = Object.values(row).every(
         (value) => !value || value.toString().trim() === "",
       );
+
       if (isEmptyRow) return false;
 
       const isHeaderRow =
         row["Client Name"] === "Client Name" && row["Phone"] === "Phone";
+
       return !isHeaderRow;
     });
-    console.log("clean data", cleanData);
-    // Group by client name
+
+    // ======================================================
+    // GROUP BY PHONE NUMBER
+    // ======================================================
+
     const grouped = {};
-    let currentClientName = null;
+
+    let currentPhone = null;
 
     cleanData.forEach((row) => {
-      if (row["Client Name"] && row["Client Name"].trim() !== "") {
-        currentClientName = row["Client Name"].trim();
+      // New client starts when phone exists
+      if (row["Phone"] && row["Phone"].trim() !== "") {
+        currentPhone = row["Phone"].trim();
 
-        if (!grouped[currentClientName]) {
-          grouped[currentClientName] = {
-            clientName: currentClientName,
-            phone: row["Phone"] || "",
+        // Create client only once
+        if (!grouped[currentPhone]) {
+          grouped[currentPhone] = {
+            clientName: row["Client Name"]?.trim() || "",
+
+            phone: currentPhone,
+
             insert: row["Insert"] === "true" || false,
+
             details: {
               serviceFees:
                 row["Service Fees"] && row["Service Fees"].trim() !== "0"
                   ? row["Service Fees"]
                   : "",
+
               monthlySubscription: row["Monthly Subscription"] || "",
+
               settlementAdvance:
                 row["Settlement Advance"] &&
                 row["Settlement Advance"].trim() !== "0"
                   ? row["Settlement Advance"]
                   : "",
+
               monthlyFees: row["Monthly Fees"] || "",
+
               settlementPercent: row["Settlement Percentage"] || "",
+
               noOfEmi: row["No Of EMI"] || "",
+
               emiAmount: row["EMI Amount"] || "",
-              dueDate: "", // initialize empty
+
+              dueDate: "",
             },
+
             creditCards: [],
+
             personalLoans: [],
           };
         }
       }
 
-      if (!currentClientName) return;
+      // Skip invalid rows
+      if (!currentPhone) return;
 
-      const client = grouped[currentClientName];
+      const client = grouped[currentPhone];
 
-      // --- Conditional dueDate assignment ---
+      // ======================================================
+      // DUE DATE
+      // ======================================================
+
       if (row["Due Date"] && row["Due Date"].trim() !== "") {
         client.details.dueDate = row["Due Date"].trim();
       }
 
-      // Credit Card handling
+      // ======================================================
+      // CREDIT CARD
+      // ======================================================
+
       if (row["Credit Card"] && row["Credit Card"].trim() !== "") {
         const amount = parseFloat(row["Amount"] || 0);
+
         const settlementPercent = parseFloat(row["CC Settlement"] || 0);
+
         const estimatedSettlement = (amount * settlementPercent) / 100;
+
         const estimatedSaving = amount - estimatedSettlement;
 
         client.creditCards.push({
           bank: row["Credit Card"],
-          amount: amount,
+
+          amount,
+
           settlement: settlementPercent,
+
           total: row["CC Total"] || "",
-          estimatedSettlement: estimatedSettlement,
+
+          estimatedSettlement,
+
           saving: estimatedSaving,
+
           finalOutstandingAmount: "",
+
           finalSettelement: "",
+
           finalPercentage: "",
+
           finalSavings: "",
+
           isOutstanding: true,
         });
       }
 
-      // Personal Loan handling
+      // ======================================================
+      // PERSONAL LOAN
+      // ======================================================
+
       if (row["Personal Loan"] && row["Personal Loan"].trim() !== "") {
         const amount = parseFloat(row["PL Amount"] || 0);
+
         const settlementPercent = parseFloat(row["PL Settlement"] || 0);
+
         const estimatedSettlement = (amount * settlementPercent) / 100;
+
         const estimatedSaving = amount - estimatedSettlement;
 
         client.personalLoans.push({
           bank: row["Personal Loan"],
-          amount: amount,
+
+          amount,
+
           settlement: settlementPercent,
+
           total: row["PL Total"] || "",
-          estimatedSettlement: estimatedSettlement,
+
+          estimatedSettlement,
+
           saving: estimatedSaving,
+
           finalOutstandingAmount: "",
+
           finalSettelement: "",
+
           finalPercentage: "",
+
           finalSavings: "",
+
           isOutstanding: true,
         });
       }
     });
 
-    // Find matched client by phone
-    let matchedClient = Object.values(grouped).find(
-      (client) => client.phone === phone,
-    );
+    // ======================================================
+    // FIND CLIENT BY PHONE
+    // ======================================================
+
+    const matchedClient = grouped[phone];
 
     if (!matchedClient) {
       return res.status(404).json({
         success: false,
+
         message: "No client found in CSV with provided phone",
       });
     }
 
-    // Calculate totals
+    // ======================================================
+    // TOTALS
+    // ======================================================
+
     const creditTotal = matchedClient.creditCards.reduce(
       (sum, card) => sum + (parseFloat(card.total) || 0),
       0,
@@ -519,60 +799,100 @@ exports.createTestEmi = async (req, res) => {
       0,
     );
 
+    // ======================================================
+    // FINAL USER DATA
+    // ======================================================
+
     const userData = {
       name: matchedClient.clientName,
+
       phone: matchedClient.phone,
+
       credit_Cards: matchedClient.creditCards,
+
       CreditTotal: creditTotal.toString(),
+
       personal_Loans: matchedClient.personalLoans,
+
       PL_Total: plTotal.toString(),
+
       Service_Fees: matchedClient.details.serviceFees || "",
+
       Service_Advance_Total: matchedClient.details.settlementAdvance || "",
+
       Settlement_Percent: matchedClient.details.settlementPercent,
+
       totalEmi: parseInt(matchedClient.details.noOfEmi || "0"),
+
       monthlyEmi: parseFloat(matchedClient.details.emiAmount || "0"),
+
       dueDate: matchedClient.details.dueDate,
+
       insert: true,
     };
 
-    // Status
+    // ======================================================
+    // STATUS
+    // ======================================================
+
     let status = "pending";
+
     if (userData.totalEmi === 0 && userData.monthlyEmi === 0) {
       status = "N/A";
     }
-    console.log("csv user data", userData);
-    // Find existing user by phone
-    let user = await DrisModel.findOne({ phone: matchedClient.phone });
-    console.log("dris User", user);
+
+    // ======================================================
+    // FIND EXISTING USER
+    // ======================================================
+
+    let user = await DrisModel.findOne({
+      phone: matchedClient.phone,
+    });
 
     if (user) {
       if (user.insert === true) {
         return res.status(400).json({
           success: false,
+
           message: "Settlements Already Inserted",
         });
       }
 
       // Update existing user
       Object.assign(user, userData);
+
       user.status = status;
+
       await user.save();
     } else {
-      // New user insert only if insert !== true
+      // Prevent new insertion if insert already true
       if (userData.insert === true) {
         return res.status(400).json({
           success: false,
-          message: "Insertion not allowed ",
+
+          message: "Insertion not allowed",
         });
       }
 
-      user = new DrisModel({ ...userData, status });
+      user = new DrisModel({
+        ...userData,
+
+        status,
+      });
+
       await user.save();
     }
+
+    // ======================================================
+    // NOTIFICATION
+    // ======================================================
+
     const message = await customeNoticationModel.find({});
-    const emiMsg = message[0]?.Emi_Notification;
-    // Notification
+
+    const emiMsg = message?.[0]?.Emi_Notification || "";
+
     const token = await getSingleUserToken(phone);
+
     if (token.status === true && token.userId) {
       await sendNotificationToSingleUser(
         token.token,
@@ -580,6 +900,7 @@ exports.createTestEmi = async (req, res) => {
         "Debt Relief India",
         "emi",
       );
+
       await createNotification(
         token.userId,
         "Debt Relief India",
@@ -588,15 +909,23 @@ exports.createTestEmi = async (req, res) => {
       );
     }
 
+    // ======================================================
+    // RESPONSE
+    // ======================================================
+
     return res.status(201).json({
       success: true,
+
       message: "EMI uploaded successfully for provided phone",
     });
   } catch (error) {
     console.error("Error parsing CSV:", error);
+
     return res.status(500).json({
       success: false,
+
       message: "Error while parsing CSV",
+
       error: error.message,
     });
   }
