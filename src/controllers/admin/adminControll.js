@@ -1234,7 +1234,7 @@ exports.getReviewUsers = async (req, res) => {
     const allowedUsers = review.allow_users.map((id) => id.toString());
 
     const finalUsers = users.map((user) => ({
-      _id: user.userId,
+      _id: user._id,
       driId: user.id,
       name: user.name,
       phone: user.phone,
